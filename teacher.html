@@ -2,34 +2,45 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>시뮬레이션 클래스룸 — 교사 대시보드</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f0ef;min-height:100vh;color:#1a1a1a}
-header{background:#fff;border-bottom:1px solid #e0e0dd;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f0ef;min-height:100vh;color:#1a1a1a;font-size:15px}
+header{background:#fff;border-bottom:1px solid #e0e0dd;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo{font-size:16px;font-weight:700;color:#3C3489}.logo span{color:#1D9E75}
-.hbtn{font-size:12px;padding:6px 14px;border-radius:7px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555}
+.hbtns{display:flex;gap:6px}
+.hbtn{font-size:12px;padding:6px 12px;border-radius:7px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;white-space:nowrap}
 .hbtn:hover{background:#f5f5f5}
-main{max-width:1100px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px}
-.card{background:#fff;border-radius:12px;padding:20px 24px;border:1px solid #e0e0dd}
-.card-title{font-size:14px;font-weight:700;color:#333;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.hbtn.on{background:#f0f0fe;color:#3C3489;border-color:#7F77DD}
+main{max-width:1100px;margin:0 auto;padding:16px}
+
+/* 탭 */
+.tabs{display:flex;gap:0;margin-bottom:16px;background:#fff;border-radius:10px;padding:4px;border:1px solid #e0e0dd}
+.tab{flex:1;padding:9px 8px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#888;font-family:inherit;transition:all .15s}
+.tab.on{background:#3C3489;color:#fff}
+.tab-panel{display:none}.tab-panel.on{display:block}
+
+/* 카드 */
+.card{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #e0e0dd;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:700;color:#333;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
 .field label{font-size:12px;color:#666;font-weight:500}
-.field input,.field textarea{border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none}
+.field input,.field textarea{border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none}
 .field input:focus,.field textarea:focus{border-color:#7F77DD}
-.field textarea{min-height:140px;font-family:monospace;font-size:11px;resize:vertical}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:inherit;font-weight:500;white-space:nowrap}
+.field textarea{min-height:130px;font-family:monospace;font-size:11px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:inherit;font-weight:500;white-space:nowrap;transition:all .12s}
 .btn-primary{background:#3C3489;color:#fff}.btn-primary:hover{background:#534AB7}
 .btn-green{background:#1D9E75;color:#fff}.btn-green:hover{background:#0F6E56}
 .btn-outline{background:#fff;color:#555;border:1px solid #ddd}.btn-outline:hover{background:#f5f5f5}
 .btn-danger{background:#fff;color:#A32D2D;border:1px solid #f0a0a0}.btn-danger:hover{background:#FCEBEB}
-.btn-sm{padding:5px 12px;font-size:12px}
+.btn-sm{padding:5px 11px;font-size:12px}
+
+/* 시뮬레이션 목록 */
 .sim-list{display:flex;flex-direction:column;gap:10px}
-.sim-item{border:1px solid #e8e8e5;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;background:#fafaf8;transition:border-color .15s}
-.sim-item:hover{border-color:#7F77DD}
+.sim-item{border:1px solid #e8e8e5;border-radius:10px;padding:13px 15px;display:flex;align-items:center;gap:10px;background:#fafaf8;flex-wrap:wrap}
 .sim-item.running{border-color:#1D9E75;background:#f0fdf8}
 .sim-info{flex:1;min-width:0}
 .sim-title{font-size:14px;font-weight:600}
@@ -37,21 +48,44 @@ main{max-width:1100px;margin:0 auto;padding:24px;display:flex;flex-direction:col
 .sim-date{font-size:11px;color:#bbb;margin-top:3px}
 .sim-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 .badge-running{background:#e1f5ee;color:#085041;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px}
-.empty-msg{text-align:center;padding:36px;color:#aaa;font-size:13px;line-height:1.8}
-#addSimForm{display:none;border-top:1px solid #eee;margin-top:16px;padding-top:16px}
+.empty-msg{text-align:center;padding:32px;color:#aaa;font-size:13px;line-height:1.8}
+#addSimForm{display:none;border-top:1px solid #eee;margin-top:14px;padding-top:14px}
+
+/* 반 이름 모달 */
+#classModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center}
+#classModal.show{display:flex}
+.modal-inner{background:#fff;border-radius:14px;padding:24px;max-width:320px;width:90%;text-align:center}
+.modal-inner h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-inner p{font-size:13px;color:#888;margin-bottom:16px}
+.modal-inner input{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 14px;font-size:15px;font-family:inherit;outline:none;margin-bottom:12px;text-align:center}
+.modal-inner input:focus{border-color:#3C3489}
+.modal-btns{display:flex;gap:8px}
+.modal-btns button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit}
+
+/* 세션 카드 */
 #sessionCard{display:none}
-.session-code{font-size:28px;font-weight:700;color:#3C3489;letter-spacing:4px}
+.session-code{font-size:26px;font-weight:700;color:#3C3489;letter-spacing:3px}
+.class-badge{background:#f0f0fe;color:#534AB7;font-size:12px;font-weight:600;padding:3px 10px;border-radius:5px;margin-left:8px}
 .link-box{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.link-box input{flex:1;min-width:200px;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:12px;color:#555;font-family:monospace;background:#fafaf8;outline:none}
-.copy-ok{font-size:11px;color:#1D9E75;display:none}
-#studentsCard{display:none}
-.status-bar{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;margin-bottom:14px}
+.link-box input{flex:1;min-width:160px;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:11px;color:#555;font-family:monospace;background:#fafaf8;outline:none}
+.copy-ok{font-size:11px;color:#1D9E75;display:none;align-self:center}
+
+/* 학생 현황 */
+.ctrl-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.ctrl-btns{display:flex;gap:6px;flex-wrap:wrap}
+.toggle-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;transition:all .15s}
+.toggle-btn.on{background:#f0f0fe;color:#534AB7;border-color:#7F77DD}
+.status-bar{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
 .dot{width:8px;height:8px;border-radius:50%;background:#ddd;flex-shrink:0}
-.dot.live{background:#1D9E75;animation:p 2s infinite}
-@keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}
-.s-card{background:#fafaf8;border-radius:10px;padding:12px;border:1px solid #e8e8e5}
+.dot.live{background:#1D9E75;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.s-card{background:#fafaf8;border-radius:10px;padding:12px;border:1px solid #e8e8e5;cursor:pointer;position:relative}
 .s-card:hover{border-color:#7F77DD}
+.s-card:hover .s-card-btns{opacity:1}
+.s-card-btns{position:absolute;top:5px;right:5px;display:flex;gap:3px;opacity:0;transition:opacity .15s;z-index:5}
+.s-icon-btn{width:22px;height:22px;border-radius:50%;border:1px solid #ddd;background:rgba(255,255,255,.9);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0}
+.s-icon-btn:hover{background:#f5f5f5}
 .s-name{font-size:13px;font-weight:600;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s-canvas{display:block;width:100%;border-radius:5px;border:1px solid #eee;background:#fff}
 .s-meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
@@ -61,62 +95,83 @@ main{max-width:1100px;margin:0 auto;padding:24px;display:flex;flex-direction:col
 .mode-eq{background:#fef0f5;color:#993556}
 .mode-sq{background:#e1f5ee;color:#085041}
 .s-time{font-size:10px;color:#bbb;margin-top:3px}
-.empty-students{text-align:center;padding:48px 20px;color:#aaa}
-.s-card{position:relative}.s-card-btns{position:absolute;top:5px;right:5px;display:flex;gap:3px;opacity:0;transition:opacity .15s;z-index:5}.s-card:hover .s-card-btns{opacity:1}.s-icon-btn{width:20px;height:20px;border-radius:50%;border:1px solid #ddd;background:rgba(255,255,255,.9);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}.s-icon-btn:hover{background:#f5f5f5}.hidden-section{margin-top:12px;border-top:1px dashed #e5e7eb;padding-top:10px;display:none}.hidden-section-title{font-size:11px;color:#aaa;margin-bottom:8px;cursor:pointer}.hidden-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.hidden-card{background:#f5f5f5;border-radius:8px;padding:8px;border:1px dashed #ddd;display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:12px;color:#888}.ctrl-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}.ctrl-btns{display:flex;gap:6px}.toggle-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;transition:all .15s}.toggle-btn.on{background:#f0f0fe;color:#534AB7;border-color:#7F77DD}
-.s-card{position:relative}
-.s-card-btns{position:absolute;top:5px;right:5px;display:flex;gap:3px;opacity:0;transition:opacity .15s;z-index:5}
-.s-card:hover .s-card-btns{opacity:1}
-.s-icon-btn{width:20px;height:20px;border-radius:50%;border:1px solid #ddd;background:rgba(255,255,255,.9);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
-.s-icon-btn:hover{background:#f5f5f5}
-.s-card.anon-card .s-name{color:#7c3aed}
-.s-anon-badge{font-size:9px;background:#f0f0fe;color:#534AB7;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+.empty-students{text-align:center;padding:40px 20px;color:#aaa}
 .hidden-section{margin-top:12px;border-top:1px dashed #e5e7eb;padding-top:10px;display:none}
-.hidden-section-title{font-size:11px;color:#aaa;margin-bottom:8px;cursor:pointer;user-select:none}
+.hidden-section-title{font-size:11px;color:#aaa;margin-bottom:8px;cursor:pointer}
 .hidden-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .hidden-card{background:#f5f5f5;border-radius:8px;padding:8px;border:1px dashed #ddd;display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:12px;color:#888}
-.ctrl-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
-.ctrl-btns{display:flex;gap:6px}
-.toggle-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;transition:all .15s}
-.toggle-btn.on{background:#f0f0fe;color:#534AB7;border-color:#7F77DD}
-.toggle-btn:hover{background:#f5f5f5}
-#simModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;padding:16px;overflow-y:auto}
-#simModal::-webkit-scrollbar{display:none}
-.modal-box{background:#fff;border-radius:16px;max-width:720px;margin:0 auto;padding:20px}
-.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eee}
-.modal-title{font-size:15px;font-weight:700;color:#3C3489}
-#modalSimContainer .card{background:#fff;border-radius:14px;padding:20px;box-shadow:none}
-#modalSimContainer h2{font-size:15px;font-weight:700;margin-bottom:12px;text-align:center}
-#modalSimContainer .sr{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-#modalSimContainer .sl{font-size:13px;font-weight:500;min-width:60px;color:#666}
-#modalSimContainer .sv{font-size:14px;font-weight:600;min-width:20px;text-align:right}
-#modalSimContainer input[type=range]{flex:1;height:4px;cursor:pointer}
-#modalSimContainer #fb{border-radius:10px;padding:10px 14px;margin:10px 0;text-align:center;font-size:14px;font-weight:600;line-height:1.8;background:#f0f0fe}
-#modalSimContainer #ar{position:relative;width:100%;height:400px;background:#fafaf8;border:1px solid #e8e8e5;border-radius:12px;overflow:hidden;touch-action:none}
-#modalSimContainer .pc{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;user-select:none;touch-action:none;border-radius:0;transition:box-shadow .12s}
-#modalSimContainer .pc.dg{cursor:grabbing;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.18)}
-#modalSimContainer .pcl{font-size:12px;font-weight:600;pointer-events:none}
-#modalSimContainer .pcv{font-size:11px;pointer-events:none;opacity:.7;margin-top:2px}
-#modalSimContainer .rot-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;z-index:10;touch-action:none}
-#modalSimContainer .rot-btn:hover{background:rgba(255,255,255,.85)}
-#modalSimContainer .btns{display:flex;gap:8px;margin-top:10px;justify-content:center;flex-wrap:wrap}
-#modalSimContainer .btn{font-size:13px;padding:6px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;font-family:inherit}
-#modalSimContainer .btn:hover{background:#f5f5f5}
-#modalSimContainer canvas#opc{position:absolute;inset:0;pointer-events:none}
-#modalSimContainer .legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;font-size:11px;color:#888}
-#modalSimContainer .li{display:flex;align-items:center;gap:4px}
-#modalSimContainer .ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-#modalSimContainer .hint{text-align:center;font-size:11px;color:#aaa;margin-top:4px}
-.s-card{cursor:pointer}
-.s-card:hover .s-name{color:#3C3489}
+
+/* 세션 기록 */
+.hist-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.hist-filter{font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#666}
+.hist-filter.on{background:#3C3489;color:#fff;border-color:#3C3489}
+.hist-list{display:flex;flex-direction:column;gap:8px}
+.hist-item{border:1px solid #e8e8e5;border-radius:10px;padding:13px 15px;background:#fafaf8;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:border-color .15s}
+.hist-item:hover{border-color:#7F77DD;background:#faf0ff}
+.hist-left{flex:1;min-width:0}
+.hist-title{font-size:14px;font-weight:600;color:#1a1a1a}
+.hist-meta{font-size:12px;color:#888;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.hist-class{background:#f0f0fe;color:#534AB7;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px}
+.hist-count{font-size:13px;font-weight:600;color:#3C3489;text-align:right;white-space:nowrap}
+.hist-empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
+.hist-status-done{color:#aaa;font-size:11px}
+.hist-status-live{color:#1D9E75;font-size:11px;font-weight:600}
+
+/* 모달 (학생 화면) */
+#simModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;padding:12px;overflow-y:auto}
+.modal-box{background:#fff;border-radius:16px;max-width:720px;margin:0 auto;padding:16px}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-top:0.5px solid #eee}
+.modal-title{font-size:14px;font-weight:700;color:#3C3489}
+
+/* 모바일 */
+@media(max-width:600px){
+  main{padding:10px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+  .sim-item{flex-direction:column;align-items:flex-start}
+  .sim-actions{width:100%}
+  .session-code{font-size:22px}
+  .link-box input{font-size:10px}
+  .hist-meta{flex-direction:column;gap:4px}
+}
 </style>
 </head>
 <body>
 <header>
   <div class="logo">수학 시뮬레이션<span> 클래스룸</span></div>
-  <button class="hbtn" id="toggleSetup">⚙ 설정</button>
+  <div class="hbtns">
+    <button class="hbtn" id="toggleSetup">⚙ 설정</button>
+  </div>
 </header>
-<main>
 
+<!-- 반 이름 입력 모달 -->
+<div id="classModal">
+  <div class="modal-inner">
+    <h3>세션 시작</h3>
+    <p id="classModalSimTitle" style="color:#3C3489;font-weight:600;margin-bottom:12px"></p>
+    <p>반 이름을 입력하세요</p>
+    <input type="text" id="classNameInput" placeholder="예: 1반, 2반, A반" maxlength="20">
+    <div class="modal-btns">
+      <button style="background:#eee;color:#555" onclick="closeClassModal()">취소</button>
+      <button style="background:#3C3489;color:#fff" onclick="confirmOpenSession()">시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- 학생 화면 모달 -->
+<div id="simModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:#aaa">조작 가능 — 학생 영향 없음</span>
+        <button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <iframe id="modalFrame" src="" style="width:100%;height:560px;border:none;border-radius:8px;background:#f5f5f3"></iframe>
+  </div>
+</div>
+
+<main>
   <!-- 설정 -->
   <div class="card" id="setupCard">
     <div class="card-title">Supabase 연결 설정</div>
@@ -128,101 +183,120 @@ main{max-width:1100px;margin:0 auto;padding:24px;display:flex;flex-direction:col
     </div>
   </div>
 
-  <!-- 시뮬레이션 목록 -->
-  <div class="card" id="simLibCard" style="display:none">
-    <div class="card-title">
-      <span>📚 시뮬레이션 목록</span>
-      <button class="btn btn-primary btn-sm" id="toggleAddForm">+ 새 추가</button>
-    </div>
-    <div id="addSimForm">
-      <div class="field"><label>제목 *</label><input type="text" id="simTitle" placeholder="예: (a-b)² 곱셈공식 시뮬레이션"></div>
-      <div class="field"><label>설명 (선택)</label><input type="text" id="simDesc" placeholder="예: 5조각 드래그 활동"></div>
-      <div class="field">
-        <label>시뮬레이션 코드 전체 붙여넣기 *</label>
-        <textarea id="simCode" placeholder="시뮬레이션 HTML+JS 코드를 여기에 붙여넣으세요"></textarea>
+  <!-- 탭 -->
+  <div class="tabs" id="mainTabs" style="display:none">
+    <button class="tab on" onclick="switchTab('sim')">📚 시뮬레이션</button>
+    <button class="tab" onclick="switchTab('live')">🟢 진행 중</button>
+    <button class="tab" onclick="switchTab('hist')">🕘 세션 기록</button>
+  </div>
+
+  <!-- 탭1: 시뮬레이션 목록 -->
+  <div class="tab-panel on" id="tab-sim">
+    <div class="card">
+      <div class="card-title">
+        <span>시뮬레이션 목록</span>
+        <button class="btn btn-primary btn-sm" id="toggleAddForm">+ 새 추가</button>
       </div>
-      <div class="row">
-        <button class="btn btn-green" id="saveSim">저장</button>
-        <button class="btn btn-outline" id="cancelAdd">취소</button>
-        <span id="simSaveMsg" style="font-size:12px;color:#1D9E75;display:none">✓ 저장됨</span>
+      <div id="addSimForm">
+        <div class="field"><label>제목 *</label><input type="text" id="simTitle" placeholder="예: (a-b)² 곱셈공식 시뮬레이션"></div>
+        <div class="field"><label>설명 (선택)</label><input type="text" id="simDesc" placeholder="예: 5조각 드래그 활동"></div>
+        <div class="field"><label>시뮬레이션 코드 전체 붙여넣기 *</label><textarea id="simCode"></textarea></div>
+        <div class="row">
+          <button class="btn btn-green" id="saveSim">저장</button>
+          <button class="btn btn-outline" id="cancelAdd">취소</button>
+          <span id="simSaveMsg" style="font-size:12px;color:#1D9E75;display:none">✓ 저장됨</span>
+        </div>
       </div>
-    </div>
-    <div class="sim-list" id="simList">
-      <div class="empty-msg" id="emptySims">
-        아직 등록된 시뮬레이션이 없어요.<br>
-        <b>+ 새 추가</b> 버튼으로 첫 번째를 추가해보세요.
+      <div class="sim-list" id="simList">
+        <div class="empty-msg" id="emptySims">시뮬레이션이 없어요.<br><b>+ 새 추가</b>로 등록해보세요.</div>
       </div>
     </div>
   </div>
 
-  <!-- 현재 세션 -->
-  <div class="card" id="sessionCard">
-    <div class="card-title">
-      <span>🟢 진행 중인 세션</span>
-      <button class="btn btn-outline btn-sm" id="endSession">종료</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div>
-        <div style="font-size:11px;color:#888;margin-bottom:2px">세션 코드</div>
-        <div class="session-code" id="sessionCode">——</div>
+  <!-- 탭2: 진행 중 세션 -->
+  <div class="tab-panel" id="tab-live">
+    <div class="card" id="sessionCard">
+      <div class="card-title">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>🟢 진행 중</span>
+          <span class="class-badge" id="sessionClassBadge"></span>
+          <span style="font-size:12px;color:#555" id="sessionSimName"></span>
+        </div>
+        <button class="btn btn-outline btn-sm" id="endSession">종료</button>
       </div>
-      <div style="font-size:13px;color:#555" id="sessionSimName"></div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:2px">세션 코드</div>
+          <div class="session-code" id="sessionCode">——</div>
+        </div>
+      </div>
+      <div class="link-box">
+        <input type="text" id="studentLink" readonly>
+        <button class="btn btn-green btn-sm" id="copyLink">복사</button>
+        <a id="openLink" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none">↗ 열기</a>
+        <span class="copy-ok" id="copyOk">✓</span>
+      </div>
     </div>
-    <div class="link-box">
-      <input type="text" id="studentLink" readonly>
-      <button class="btn btn-green" id="copyLink">링크 복사</button>
-      <a id="openLink" target="_blank" class="btn btn-outline" style="text-decoration:none">↗ 직접 열기</a>
-      <span class="copy-ok" id="copyOk">✓ 복사됨</span>
+    <div class="card" id="noSessionMsg" style="text-align:center;padding:32px;color:#aaa;font-size:13px">
+      진행 중인 세션이 없어요.<br>
+      <span style="font-size:12px">시뮬레이션 탭에서 ▶ 세션 열기를 눌러보세요</span>
     </div>
-    <div style="font-size:11px;color:#aaa;margin-top:6px">↗ 직접 열기로 교사도 학생 화면을 미리 확인할 수 있어요</div>
+    <div class="card" id="studentsCard">
+      <div class="ctrl-bar">
+        <div class="status-bar">
+          <div class="dot" id="liveDot"></div>
+          <span id="statusText">학생 대기 중...</span>
+        </div>
+        <div class="ctrl-btns">
+          <button class="toggle-btn" id="anonBtn" onclick="toggleAnon()">👤 익명</button>
+          <button class="toggle-btn" id="hiddenBtn" onclick="toggleHiddenSection()">🙈 숨긴 학생</button>
+        </div>
+      </div>
+      <div class="grid" id="studentGrid">
+        <div class="empty-students" id="emptyState">
+          <div style="font-size:28px">👥</div>
+          <p style="margin-top:8px;font-size:13px">학생이 접속하면 표시됩니다</p>
+        </div>
+      </div>
+      <div class="hidden-section" id="hiddenSection">
+        <div class="hidden-section-title" onclick="toggleHiddenSection()">▸ 숨긴 학생</div>
+        <div class="hidden-grid" id="hiddenGrid"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- 학생 현황 -->
-  <div class="card" id="studentsCard">
-    <div class="ctrl-bar">
-      <div class="status-bar" style="margin:0">
-        <div class="dot" id="liveDot"></div>
-        <span id="statusText">학생 대기 중...</span>
+  <!-- 탭3: 세션 기록 -->
+  <div class="tab-panel" id="tab-hist">
+    <div class="card">
+      <div class="card-title">
+        <span>세션 기록</span>
+        <button class="btn btn-outline btn-sm" onclick="loadHistory()">↺ 새로고침</button>
       </div>
-      <div class="ctrl-btns">
-        <button class="toggle-btn" id="anonBtn" onclick="toggleAnon()" title="학생 이름 익명 표시">👤 익명</button>
-        <button class="toggle-btn" id="hiddenBtn" onclick="toggleHiddenSection()" title="숨긴 학생 관리">🙈 숨긴 학생</button>
-      </div>
-    </div>
-    <div class="grid" id="studentGrid">
-      <div class="empty-students" id="emptyState">
-        <div style="font-size:32px">👥</div>
-        <p style="margin-top:8px;font-size:13px">학생이 접속하면 여기에 표시됩니다</p>
+      <div class="hist-filters" id="histFilters"></div>
+      <div class="hist-list" id="histList">
+        <div class="hist-empty">세션 기록을 불러오는 중...</div>
       </div>
     </div>
-    <div class="hidden-section" id="hiddenSection">
-      <div class="hidden-section-title" onclick="toggleHiddenSection()">▸ 숨긴 학생 목록</div>
-      <div class="hidden-grid" id="hiddenGrid"></div>
+    <!-- 기록 상세: 학생 상태 -->
+    <div class="card" id="histDetail" style="display:none">
+      <div class="card-title">
+        <span id="histDetailTitle"></span>
+        <button class="btn btn-outline btn-sm" onclick="closeHistDetail()">✕ 닫기</button>
+      </div>
+      <div class="grid" id="histStudentGrid"></div>
     </div>
   </div>
-
 </main>
 
-<!-- 학생 화면 모달 -->
-<div id="simModal" onclick="if(event.target===this)closeModal()">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:11px;color:#aaa">조작 가능 — 학생 화면에 영향 없음</span>
-        <button class="btn btn-outline btn-sm" onclick="closeModal()">✕ 닫기</button>
-      </div>
-    </div>
-    <iframe id="modalFrame" src="" style="width:100%;height:580px;border:none;border-radius:8px;background:#f5f5f3" allowfullscreen></iframe>
-  </div>
-</div>
-
 <script>
-var sbClient=null,sessionId=null,currentSimId=null,currentSimTitle='',students={},channel=null,cachedSimCode=null,cardElements={};
-var hiddenStudents={}, isAnon=false, anonMap={}, anonCount=0;
+var sbClient=null,sessionId=null,currentSimId=null,currentSimTitle='',currentClassName='';
+var students={},channel=null,cachedSimCode=null,cardElements={};
+var hiddenStudents={},isAnon=false,anonMap={},anonCount=0;
+var pendingSimId=null,pendingSimTitle='';
 var PF=['#EEEDFE','#FAECE7','#E1F5EE','#E1F5EE','#E6F1FB'];
 var PS=['#7F77DD','#D85A30','#1D9E75','#1D9E75','#378ADD'];
 
+// ── 초기 로드 ──
 window.addEventListener('load',function(){
   var url=localStorage.getItem('sb_url'),key=localStorage.getItem('sb_key');
   if(url&&key){
@@ -237,7 +311,6 @@ document.getElementById('toggleSetup').addEventListener('click',function(){
   var c=document.getElementById('setupCard');
   c.style.display=c.style.display==='none'?'':'none';
 });
-
 document.getElementById('saveConfig').addEventListener('click',function(){
   var url=document.getElementById('sbUrl').value.trim(),key=document.getElementById('sbKey').value.trim();
   if(!url||!key){alert('URL과 키를 모두 입력해주세요.');return;}
@@ -249,11 +322,20 @@ document.getElementById('saveConfig').addEventListener('click',function(){
 
 function initSupa(url,key){
   sbClient=supabase.createClient(url,key);
-  document.getElementById('simLibCard').style.display='block';
-  document.getElementById('studentsCard').style.display='block';
+  document.getElementById('mainTabs').style.display='flex';
   loadSimList();
-  var s=localStorage.getItem('session_id'),sid=localStorage.getItem('session_sim_id'),st=localStorage.getItem('session_sim_title');
-  if(s&&sid){currentSimId=sid;currentSimTitle=st||'';startSession(s,false);}
+  loadHistory();
+  var s=localStorage.getItem('session_id'),sid=localStorage.getItem('session_sim_id'),st=localStorage.getItem('session_sim_title'),sc=localStorage.getItem('session_class');
+  if(s&&sid){currentSimId=sid;currentSimTitle=st||'';currentClassName=sc||'';startSession(s,false);}
+  else{ document.getElementById('noSessionMsg').style.display=''; document.getElementById('studentsCard').style.display='none'; document.getElementById('sessionCard').style.display='none';}
+}
+
+// ── 탭 전환 ──
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('on',['sim','live','hist'][i]===name);});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('on');});
+  document.getElementById('tab-'+name).classList.add('on');
+  if(name==='hist') loadHistory();
 }
 
 // ── 시뮬레이션 목록 ──
@@ -266,28 +348,29 @@ async function loadSimList(){
   document.getElementById('emptySims').style.display=sims.length?'none':'';
   sims.forEach(function(sim){
     var d=new Date(sim.created_at);
-    var ds=(d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getDate().toString().padStart(2,'0'));
+    var ds=d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getDate().toString().padStart(2,'0');
     var isRunning=(String(currentSimId)===String(sim.id));
     var el=document.createElement('div');
     el.className='sim-item'+(isRunning?' running':'');
-    el.innerHTML=
-      '<div class="sim-info">'
-        +'<div class="sim-title">'+esc(sim.title)+'</div>'
-        +(sim.description?'<div class="sim-desc">'+esc(sim.description)+'</div>':'')
-        +'<div class="sim-date">'+ds+'</div>'
-      +'</div>'
-      +'<div class="sim-actions">'
-        +(isRunning?'<span class="badge-running">진행 중</span>':'')
-        +'<button class="btn btn-green btn-sm" onclick="openSession(\''+sim.id+'\',\''+esc(sim.title)+'\')">▶ 세션 열기</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteSim(\''+sim.id+'\')">삭제</button>'
+    el.innerHTML='<div class="sim-info"><div class="sim-title">'+esc(sim.title)+'</div>'
+      +(sim.description?'<div class="sim-desc">'+esc(sim.description)+'</div>':'')
+      +'<div class="sim-date">'+ds+'</div></div>'
+      +'<div class="sim-actions">'+(isRunning?'<span class="badge-running">진행 중</span>':'')
       +'</div>';
+    var openBtn=document.createElement('button');
+    openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 세션 열기';
+    openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
+    var delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
+    delBtn.addEventListener('click',(function(id){return function(){deleteSim(id);};})(sim.id));
+    el.querySelector('.sim-actions').appendChild(openBtn);
+    el.querySelector('.sim-actions').appendChild(delBtn);
     list.appendChild(el);
   });
 }
 
 document.getElementById('toggleAddForm').addEventListener('click',function(){
-  var f=document.getElementById('addSimForm');
-  f.style.display=f.style.display==='block'?'none':'block';
+  var f=document.getElementById('addSimForm');f.style.display=f.style.display==='block'?'none':'block';
 });
 document.getElementById('cancelAdd').addEventListener('click',function(){
   document.getElementById('addSimForm').style.display='none';
@@ -312,44 +395,77 @@ async function deleteSim(id){
   loadSimList();
 }
 
-// ── 세션 ──
-function openSession(simId,simTitle){
+// ── 반 이름 모달 ──
+function askClassName(simId,simTitle){
   if(currentSimId&&!confirm('현재 세션을 종료하고 새 세션을 시작할까요?'))return;
-  currentSimId=simId;currentSimTitle=simTitle;
-  localStorage.setItem('session_sim_id',simId);localStorage.setItem('session_sim_title',simTitle);
-  var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='';
-  for(var i=0;i<6;i++)code+=c[Math.floor(Math.random()*c.length)];
+  pendingSimId=simId;pendingSimTitle=simTitle;
+  document.getElementById('classModalSimTitle').textContent=simTitle;
+  document.getElementById('classNameInput').value='';
+  document.getElementById('classModal').classList.add('show');
+  setTimeout(function(){document.getElementById('classNameInput').focus();},100);
+}
+function closeClassModal(){document.getElementById('classModal').classList.remove('show');}
+document.getElementById('classNameInput').addEventListener('keydown',function(e){if(e.key==='Enter')confirmOpenSession();});
+function confirmOpenSession(){
+  var className=document.getElementById('classNameInput').value.trim()||'기본반';
+  closeClassModal();
+  openSession(pendingSimId,pendingSimTitle,className);
+}
+
+// ── 세션 열기/종료 ──
+function openSession(simId,simTitle,className){
+  currentSimId=simId;currentSimTitle=simTitle;currentClassName=className;
+  localStorage.setItem('session_sim_id',simId);
+  localStorage.setItem('session_sim_title',simTitle);
+  localStorage.setItem('session_class',className);
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='';
+  for(var i=0;i<6;i++)code+=chars[Math.floor(Math.random()*chars.length)];
   localStorage.setItem('session_id',code);
   startSession(code,true);
+  switchTab('live');
 }
 
 function startSession(code,isNew){
   sessionId=code;
-  if(isNew){ clearGrid(); hiddenStudents={}; anonMap={}; anonCount=0; }
-  // 저장된 숨기기 목록 불러오기
-  try{ var h=localStorage.getItem('hidden_'+code); if(h) hiddenStudents=JSON.parse(h); }catch(e){}
-  isAnon=localStorage.getItem('is_anon')==='1';
-  updateAnonBtn();
+  if(isNew){clearGrid();hiddenStudents={};anonMap={};anonCount=0;}
+  try{var h=localStorage.getItem('hidden_'+code);if(h)hiddenStudents=JSON.parse(h);}catch(e){}
+  isAnon=localStorage.getItem('is_anon')==='1';updateAnonBtn();
   document.getElementById('sessionCode').textContent=code;
+  document.getElementById('sessionClassBadge').textContent=currentClassName;
   document.getElementById('sessionSimName').textContent='📌 '+currentSimTitle;
   var base=window.location.href.replace('teacher.html','student.html');
   var link=base+'?session='+code+'&sim='+currentSimId;
   document.getElementById('studentLink').value=link;
   document.getElementById('openLink').href=link;
   document.getElementById('sessionCard').style.display='block';
+  document.getElementById('noSessionMsg').style.display='none';
+  document.getElementById('studentsCard').style.display='block';
   document.getElementById('liveDot').classList.add('live');
-  if(!isNew)loadStudentData();
+  if(isNew){
+    // 세션 기록 저장
+    if(sbClient) sbClient.from('sessions').upsert({
+      id:code,sim_id:currentSimId,sim_title:currentSimTitle,
+      class_name:currentClassName,created_at:new Date().toISOString()
+    }).then(function(){});
+  } else { loadStudentData(); }
   subscribeRealtime();
   loadSimList();
 }
 
 document.getElementById('endSession').addEventListener('click',function(){
   if(!confirm('세션을 종료할까요?'))return;
-  sessionId=null;currentSimId=null;currentSimTitle='';
-  ['session_id','session_sim_id','session_sim_title'].forEach(function(k){localStorage.removeItem(k);});
+  // 세션 종료 기록
+  var n=Object.keys(students).length;
+  if(sbClient&&sessionId) sbClient.from('sessions').update({
+    ended_at:new Date().toISOString(),student_count:n
+  }).eq('id',sessionId).then(function(){});
+  sessionId=null;currentSimId=null;currentSimTitle='';currentClassName='';
+  ['session_id','session_sim_id','session_sim_title','session_class'].forEach(function(k){localStorage.removeItem(k);});
   document.getElementById('sessionCard').style.display='none';
+  document.getElementById('noSessionMsg').style.display='';
+  document.getElementById('studentsCard').style.display='none';
   if(channel)sbClient.removeChannel(channel);
-  clearGrid();loadSimList();
+  clearGrid();loadSimList();loadHistory();
 });
 
 document.getElementById('copyLink').addEventListener('click',function(){
@@ -360,8 +476,7 @@ document.getElementById('copyLink').addEventListener('click',function(){
 });
 
 // ── 학생 ──
-var cardElements={};  // 이름 → DOM 엘리먼트 맵 (한글 ID 충돌 방지)
-
+var cardElements={};
 async function loadStudentData(){
   if(!sbClient||!sessionId)return;
   var r=await sbClient.from('sim_states').select('*').eq('session_id',sessionId);
@@ -373,162 +488,161 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_states',filter:'session_id=eq.'+sessionId},
       function(p){if(p.new)upsertStudent(p.new);}).subscribe();
 }
-function upsertStudent(row){students[row.student_name]=row;renderCard(row);updateBar();}
+function upsertStudent(row){
+  students[row.student_name]=row;
+  // 세션 학생 수 업데이트
+  if(sbClient&&sessionId) sbClient.from('sessions').update({student_count:Object.keys(students).length}).eq('id',sessionId).then(function(){});
+  renderCard(row);updateBar();
+}
 function updateBar(){
   var total=Object.keys(students).length;
   var hidden=Object.keys(hiddenStudents).filter(function(n){return hiddenStudents[n];}).length;
   var visible=total-hidden;
-  var txt='학생 '+visible+'명 실시간 연결 중';
-  if(hidden>0) txt+=' (숨김 '+hidden+'명)';
-  if(isAnon) txt+=' · 익명 모드';
+  var txt='학생 '+visible+'명 연결 중';
+  if(hidden>0)txt+=' (숨김 '+hidden+'명)';
+  if(isAnon)txt+=' · 익명';
   document.getElementById('statusText').textContent=txt;
-  var e=document.getElementById('emptyState');
-  if(e) e.style.display=(visible===0&&total===0)?'':'none';
+  var e=document.getElementById('emptyState');if(e)e.style.display=(visible===0&&total===0)?'':'none';
 }
 function clearGrid(){
-  students={};cardElements={};cachedSimCode=null;hiddenStudents={};anonMap={};anonCount=0;
-  document.getElementById('studentGrid').innerHTML='<div class="empty-students" id="emptyState"><div style="font-size:32px">👥</div><p style="margin-top:8px;font-size:13px">학생이 접속하면 여기에 표시됩니다</p></div>';
+  students={};cardElements={};cachedSimCode=null;
+  document.getElementById('studentGrid').innerHTML='<div class="empty-students" id="emptyState"><div style="font-size:28px">👥</div><p style="margin-top:8px;font-size:13px">학생이 접속하면 표시됩니다</p></div>';
   document.getElementById('statusText').textContent='학생 대기 중...';
 }
-function renderCard(row){
+
+function renderCard(row,grid,readOnly){
   var name=row.student_name,state=row.state||{};
-  // 숨긴 학생이면 숨김 목록만 갱신
-  if(hiddenStudents[name]){
-    renderHiddenList();
-    return;
-  }
+  var g=grid||document.getElementById('studentGrid');
+  if(!grid&&hiddenStudents[name]){renderHiddenList();return;}
   var el=cardElements[name];
-  if(!el){
+  if(!el||(grid&&!el.parentNode)){
     el=document.createElement('div');el.className='s-card';
-    // 숨기기 버튼
-    var btnWrap=document.createElement('div');btnWrap.className='s-card-btns';
-    var hideBtn=document.createElement('button');
-    hideBtn.className='s-icon-btn';hideBtn.title='숨기기';hideBtn.textContent='🙈';
-    hideBtn.addEventListener('click',function(e){e.stopPropagation();hideStudent(name);});
-    var delBtn=document.createElement('button');
-    delBtn.className='s-icon-btn';delBtn.title='삭제';delBtn.textContent='🗑';
-    delBtn.addEventListener('click',function(e){e.stopPropagation();deleteStudent(name);});
-    btnWrap.appendChild(hideBtn);btnWrap.appendChild(delBtn);
+    if(!grid){
+      var btnWrap=document.createElement('div');btnWrap.className='s-card-btns';
+      var hb=document.createElement('button');hb.className='s-icon-btn';hb.title='숨기기';hb.textContent='🙈';
+      hb.addEventListener('click',function(e){e.stopPropagation();hideStudent(name);});
+      var db=document.createElement('button');db.className='s-icon-btn';db.title='삭제';db.textContent='🗑';
+      db.addEventListener('click',function(e){e.stopPropagation();deleteStudent(name);});
+      btnWrap.appendChild(hb);btnWrap.appendChild(db);
+      el.appendChild(btnWrap);
+    }
+    var nameDiv=document.createElement('div');nameDiv.className='s-name';nameDiv.textContent=getDisplayName(name);
+    var canvas=document.createElement('canvas');canvas.className='s-canvas';canvas.height=110;
+    var meta=document.createElement('div');meta.className='s-meta';
     var abSpan=document.createElement('span');abSpan.className='s-ab';
     var modeSpan=document.createElement('span');modeSpan.className='s-mode';
     var timeDiv=document.createElement('div');timeDiv.className='s-time';
-    var canvas=document.createElement('canvas');canvas.className='s-canvas';canvas.height=120;
-    var nameDiv=document.createElement('div');nameDiv.className='s-name';nameDiv.textContent=getDisplayName(name);
-    var meta=document.createElement('div');meta.className='s-meta';
     meta.appendChild(abSpan);meta.appendChild(modeSpan);
-    el.appendChild(btnWrap);
     el.appendChild(nameDiv);el.appendChild(canvas);el.appendChild(meta);el.appendChild(timeDiv);
-    cardElements[name]=el;
-    el.addEventListener('click',function(){showStudentModal(name);});
-    document.getElementById('studentGrid').appendChild(el);
+    if(!grid) cardElements[name]=el;
+    if(!readOnly) el.addEventListener('click',function(){showStudentModal(name);});
+    g.appendChild(el);
     var e=document.getElementById('emptyState');if(e)e.style.display='none';
   }
-  // 썸네일 또는 커스텀 캔버스 미리보기
   var cv=el.querySelector('canvas');
   var imgEl=el.querySelector('img.s-thumb');
   if(state.thumbnail){
-    if(!imgEl){
-      imgEl=document.createElement('img');
-      imgEl.className='s-thumb';
-      imgEl.style.cssText='width:100%;border-radius:5px;border:1px solid #eee;display:block;background:#fafaf8;min-height:80px;object-fit:contain';
-      if(cv)cv.parentNode.insertBefore(imgEl,cv);
-    }
-    imgEl.src=state.thumbnail;
-    imgEl.style.display='block';
-    if(cv)cv.style.display='none';
-  } else if(state.pos&&cv){
-    cv.style.display='block';
-    if(imgEl)imgEl.style.display='none';
-    drawPreview(cv,state);
+    if(!imgEl){imgEl=document.createElement('img');imgEl.className='s-thumb';imgEl.style.cssText='width:100%;border-radius:5px;border:1px solid #eee;display:block;background:#fafaf8;min-height:70px;object-fit:contain';if(cv)cv.parentNode.insertBefore(imgEl,cv);}
+    imgEl.src=state.thumbnail;imgEl.style.display='block';if(cv)cv.style.display='none';
   } else if(cv){
-    cv.style.display='block';
-    if(imgEl)imgEl.style.display='none';
+    cv.style.display='block';if(imgEl)imgEl.style.display='none';
+    if(state.pos||state.smoothTime!==undefined||state._inputs) drawPreview(cv,state);
   }
-  // a/b 또는 입력값 요약 표시
   var ab=el.querySelector('.s-ab');
   if(ab){
     if(state._inputs&&Object.keys(state._inputs).length){
-      var vals=Object.keys(state._inputs).slice(0,2).map(function(k){
-        return k+'='+state._inputs[k];
-      }).join('  ');
-      ab.textContent=vals;
-    } else {
-      ab.textContent='a='+(state.a!==undefined?state.a:'?')+' b='+(state.b!==undefined?state.b:'?');
-    }
+      ab.textContent=Object.keys(state._inputs).slice(0,2).map(function(k){return k+'='+state._inputs[k];}).join('  ');
+    } else { ab.textContent='a='+(state.a!==undefined?state.a:'?')+' b='+(state.b!==undefined?state.b:'?'); }
   }
   var md=el.querySelector('.s-mode');
-  if(md){md.textContent={init:'원위치',eq:'수식배열',sq:'정사각형'}[state.mode]||'';md.className='s-mode mode-'+(state.mode||'init');}
+  if(md){md.textContent={init:'원위치',eq:'수식배열',sq:'정사각형'}[state.mode]||state.mode||'';md.className='s-mode mode-'+(state.mode||'init');}
   var t=el.querySelector('.s-time');
   if(t&&row.updated_at){var d=new Date(row.updated_at);t.textContent=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');}
 }
-function drawPreview(cv,state){
-  var W=cv.offsetWidth||160,H=120;
-  cv.width=W;
-  var ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#f9fafb';ctx.fillRect(0,0,W,H);
 
-  // ① 퍼즐 시뮬레이션 (pos 배열 있을 때)
+function drawPreview(cv,state){
+  var W=cv.offsetWidth||160,H=110;
+  cv.width=W;var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9fafb';ctx.fillRect(0,0,W,H);
   if(state.pos&&state.pos.length){
     state.pos.forEach(function(p,i){
-      var x=p.x*W,y=p.y*H,w=p.w*W,h=p.h*H;
-      if(w<1||h<1)return;
-      if(i===1&&state.mode==='sq'){
-        ctx.strokeStyle=PS[i];ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
-      } else {
-        ctx.fillStyle=PF[i]||'#eee';ctx.fillRect(x,y,w,h);
-        ctx.strokeStyle=PS[i]||'#999';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
-      }
-    });
-    return;
+      var x=p.x*W,y=p.y*H,w=p.w*W,h=p.h*H;if(w<1||h<1)return;
+      if(i===1&&state.mode==='sq'){ctx.strokeStyle=PS[i];ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);}
+      else{ctx.fillStyle=PF[i]||'#eee';ctx.fillRect(x,y,w,h);ctx.strokeStyle=PS[i]||'#999';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);}
+    });return;
   }
-
-  // ② DMTG / 기타 — 텍스트 요약 표시
-  ctx.font='500 11px -apple-system,sans-serif';
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-
+  ctx.font='500 11px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   if(state.smoothTime!==undefined){
-    // DMTG 스타일: 시간/간격/자취 수 표시
-    // 미니 진행 바
     var prog=Math.min(1,(state.smoothTime||0)/10);
-    ctx.fillStyle='#e5e7eb';ctx.fillRect(12,20,W-24,8);
-    ctx.fillStyle='#7c3aed';ctx.fillRect(12,20,(W-24)*prog,8);
+    ctx.fillStyle='#e5e7eb';ctx.fillRect(12,18,W-24,7);
+    ctx.fillStyle='#7c3aed';ctx.fillRect(12,18,(W-24)*prog,7);
     ctx.fillStyle='#555';
-    ctx.fillText('시간  '+( state.smoothTime||0).toFixed(1)+'초', W/2, 48);
-    ctx.fillText('간격  '+(state.traceInterval||'?')+'초', W/2, 66);
-    ctx.fillText('자취  '+(state.tracesCount||0)+'개', W/2, 84);
-    // 완료 표시
-    if(state.smoothTime>=10){
-      ctx.fillStyle='#059669';
-      ctx.fillRect(W/2-22,100,44,14);
-      ctx.fillStyle='#fff';ctx.font='bold 10px -apple-system,sans-serif';
-      ctx.fillText('완료',W/2,107);
-    }
+    ctx.fillText('시간 '+(state.smoothTime||0).toFixed(1)+'초',W/2,44);
+    ctx.fillText('간격 '+(state.traceInterval||'?')+'초',W/2,60);
+    ctx.fillText('자취 '+(state.tracesCount||0)+'개',W/2,76);
+    if(state.smoothTime>=10){ctx.fillStyle='#059669';ctx.fillRect(W/2-20,90,40,13);ctx.fillStyle='#fff';ctx.font='bold 10px -apple-system,sans-serif';ctx.fillText('완료',W/2,96);}
   } else if(state._inputs&&Object.keys(state._inputs).length){
-    // 자동 수집 입력값 표시
-    var keys=Object.keys(state._inputs).slice(0,4);
-    var startY=H/2-(keys.length-1)*11;
-    ctx.fillStyle='#555';
-    keys.forEach(function(k,i){
-      ctx.fillText(k+' = '+state._inputs[k], W/2, startY+i*22);
-    });
-  } else {
-    ctx.fillStyle='#aaa';
-    ctx.fillText('활동 중', W/2, H/2);
-  }
+    var keys=Object.keys(state._inputs).slice(0,4),sy=H/2-(keys.length-1)*10;
+    ctx.fillStyle='#555';keys.forEach(function(k,i){ctx.fillText(k+'='+state._inputs[k],W/2,sy+i*20);});
+  } else {ctx.fillStyle='#aaa';ctx.fillText('활동 중',W/2,H/2);}
 }
+
+// ── 익명/숨기기 ──
+function getDisplayName(name){
+  if(!isAnon)return name;
+  if(!anonMap[name]){anonCount++;anonMap[name]='학생 '+anonCount;}
+  return anonMap[name];
+}
+function toggleAnon(){
+  isAnon=!isAnon;localStorage.setItem('is_anon',isAnon?'1':'0');updateAnonBtn();
+  Object.keys(cardElements).forEach(function(name){var el=cardElements[name];if(!el)return;var d=el.querySelector('.s-name');if(d)d.textContent=getDisplayName(name);});updateBar();
+}
+function updateAnonBtn(){var btn=document.getElementById('anonBtn');if(btn)btn.classList.toggle('on',isAnon);}
+function hideStudent(name){
+  hiddenStudents[name]=true;localStorage.setItem('hidden_'+sessionId,JSON.stringify(hiddenStudents));
+  var el=cardElements[name];if(el)el.style.display='none';renderHiddenList();updateBar();
+}
+function showStudent(name){
+  delete hiddenStudents[name];localStorage.setItem('hidden_'+sessionId,JSON.stringify(hiddenStudents));
+  if(students[name])renderCard(students[name]);renderHiddenList();updateBar();
+}
+function deleteStudent(name){
+  if(!confirm((isAnon?getDisplayName(name):name)+'를 삭제할까요?'))return;
+  if(sbClient&&sessionId)sbClient.from('sim_states').delete().eq('session_id',sessionId).eq('student_name',name).then(function(){});
+  delete students[name];delete hiddenStudents[name];
+  var el=cardElements[name];if(el)el.remove();delete cardElements[name];
+  localStorage.setItem('hidden_'+sessionId,JSON.stringify(hiddenStudents));
+  renderHiddenList();updateBar();
+}
+function toggleHiddenSection(){
+  var sec=document.getElementById('hiddenSection'),btn=document.getElementById('hiddenBtn');if(!sec)return;
+  var open=sec.style.display==='block';sec.style.display=open?'none':'block';if(btn)btn.classList.toggle('on',!open);
+}
+function renderHiddenList(){
+  var grid=document.getElementById('hiddenGrid'),sec=document.getElementById('hiddenSection');if(!grid||!sec)return;
+  var names=Object.keys(hiddenStudents).filter(function(n){return hiddenStudents[n];});
+  if(!names.length){sec.style.display='none';document.getElementById('hiddenBtn').classList.remove('on');grid.innerHTML='';return;}
+  grid.innerHTML='';
+  names.forEach(function(name){
+    var d=document.createElement('div');d.className='hidden-card';
+    var ns=document.createElement('span');ns.textContent=getDisplayName(name);
+    var br=document.createElement('div');br.style.cssText='display:flex;gap:3px';
+    var sb=document.createElement('button');sb.className='s-icon-btn';sb.title='다시 보기';sb.textContent='👁';
+    sb.addEventListener('click',(function(n){return function(){showStudent(n);};})(name));
+    var db=document.createElement('button');db.className='s-icon-btn';db.title='삭제';db.textContent='🗑';
+    db.addEventListener('click',(function(n){return function(){deleteStudent(n);};})(name));
+    br.appendChild(sb);br.appendChild(db);d.appendChild(ns);d.appendChild(br);grid.appendChild(d);
+  });
+}
+
+// ── 학생 모달 ──
 function showStudentModal(name){
   var row=students[name];if(!row||!sessionId||!currentSimId)return;
-  var state=row.state||{};
-  var stateStr='';
+  var state=row.state||{},stateStr='';
   try{stateStr=btoa(encodeURIComponent(JSON.stringify(state)));}catch(e){}
   var base=window.location.href.replace('teacher.html','student.html');
-  var url=base+'?session='+sessionId+'&sim='+currentSimId
-    +'&name='+encodeURIComponent(name)
-    +'&preview=1'
-    +(stateStr?'&state='+stateStr:'');
-  document.getElementById('modalTitle').innerHTML='👁 <b>'+esc(name)+'</b>의 화면 <span style="font-size:11px;color:#aaa;font-weight:400">— 조작 가능, 학생에 영향 없음</span>';
+  var url=base+'?session='+sessionId+'&sim='+currentSimId+'&name='+encodeURIComponent(name)+'&preview=1'+(stateStr?'&state='+stateStr:'');
+  document.getElementById('modalTitle').innerHTML='👁 <b>'+esc(name)+'</b>의 화면';
   document.getElementById('modalFrame').src=url;
   document.getElementById('simModal').style.display='block';
   document.body.style.overflow='hidden';
@@ -538,96 +652,68 @@ function closeModal(){
   document.getElementById('modalFrame').src='';
   document.body.style.overflow='';
 }
-// ── 익명 / 숨기기 ──
-function getDisplayName(name){
-  if(!isAnon) return name;
-  if(!anonMap[name]){ anonCount++; anonMap[name]='학생 '+anonCount; }
-  return anonMap[name];
-}
 
-function toggleAnon(){
-  isAnon=!isAnon;
-  localStorage.setItem('is_anon',isAnon?'1':'0');
-  updateAnonBtn();
-  // 모든 카드 이름 갱신
-  Object.keys(cardElements).forEach(function(name){
-    var el=cardElements[name];
-    if(!el)return;
-    var nameDiv=el.querySelector('.s-name');
-    if(nameDiv) nameDiv.textContent=getDisplayName(name);
+// ── 세션 기록 ──
+var histFilter='all';
+async function loadHistory(){
+  if(!sbClient){document.getElementById('histList').innerHTML='<div class="hist-empty">먼저 연결 설정을 완료해주세요.</div>';return;}
+  var r=await sbClient.from('sessions').select('*').order('created_at',{ascending:false}).limit(100);
+  var sessions=r.data||[];
+  renderHistFilters(sessions);
+  renderHistList(sessions);
+}
+function renderHistFilters(sessions){
+  var titles={};
+  sessions.forEach(function(s){if(s.sim_title)titles[s.sim_title]=true;});
+  var bar=document.getElementById('histFilters');bar.innerHTML='';
+  var all=document.createElement('button');
+  all.className='hist-filter'+(histFilter==='all'?' on':'');
+  all.textContent='전체';
+  all.addEventListener('click',function(){histFilter='all';loadHistory();});
+  bar.appendChild(all);
+  Object.keys(titles).forEach(function(t){
+    var btn=document.createElement('button');
+    btn.className='hist-filter'+(histFilter===t?' on':'');
+    btn.textContent=t.length>12?t.slice(0,12)+'…':t;
+    btn.addEventListener('click',function(){histFilter=t;loadHistory();});
+    bar.appendChild(btn);
   });
-  updateBar();
 }
-
-function updateAnonBtn(){
-  var btn=document.getElementById('anonBtn');
-  if(btn) btn.classList.toggle('on',isAnon);
+function renderHistList(sessions){
+  var list=document.getElementById('histList');list.innerHTML='';
+  var filtered=histFilter==='all'?sessions:sessions.filter(function(s){return s.sim_title===histFilter;});
+  if(!filtered.length){list.innerHTML='<div class="hist-empty">세션 기록이 없어요.</div>';return;}
+  filtered.forEach(function(s){
+    var d=new Date(s.created_at);
+    var ds=(d.getMonth()+1)+'/'+(d.getDate())+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    var isLive=sessionId===s.id;
+    var el=document.createElement('div');el.className='hist-item';
+    el.innerHTML='<div class="hist-left">'
+      +'<div class="hist-title">'+esc(s.sim_title||'제목 없음')+'</div>'
+      +'<div class="hist-meta">'
+      +'<span class="hist-class">'+esc(s.class_name||'기본반')+'</span>'
+      +'<span>'+ds+'</span>'
+      +(isLive?'<span class="hist-status-live">● 진행 중</span>':'<span class="hist-status-done">'+(s.ended_at?'종료':'미종료')+'</span>')
+      +'</div></div>'
+      +'<div class="hist-count">'+(s.student_count||0)+'명</div>';
+    el.addEventListener('click',function(){showHistDetail(s);});
+    list.appendChild(el);
+  });
 }
-
-function hideStudent(name){
-  hiddenStudents[name]=true;
-  localStorage.setItem('hidden_'+sessionId, JSON.stringify(hiddenStudents));
-  var el=cardElements[name];
-  if(el) el.style.display='none';
-  renderHiddenList();
-  updateBar();
-}
-
-function showStudent(name){
-  delete hiddenStudents[name];
-  localStorage.setItem('hidden_'+sessionId, JSON.stringify(hiddenStudents));
-  // 카드 다시 표시
-  if(students[name]) renderCard(students[name]);
-  renderHiddenList();
-  updateBar();
-}
-
-function deleteStudent(name){
-  if(!confirm((isAnon?getDisplayName(name):name)+'를 삭제할까요? (Supabase에서도 삭제됩니다)')) return;
-  if(sbClient&&sessionId) sbClient.from('sim_states').delete().eq('session_id',sessionId).eq('student_name',name).then(function(){});
-  delete students[name];
-  delete hiddenStudents[name];
-  delete cardElements[name];
-  localStorage.setItem('hidden_'+sessionId, JSON.stringify(hiddenStudents));
-  var el=document.getElementById('s_'+encodeURIComponent(name));
-  if(el) el.remove();
-  renderHiddenList();
-  updateBar();
-}
-
-function toggleHiddenSection(){
-  var sec=document.getElementById('hiddenSection');
-  var btn=document.getElementById('hiddenBtn');
-  if(!sec)return;
-  var open=sec.style.display==='block';
-  sec.style.display=open?'none':'block';
-  if(btn) btn.classList.toggle('on',!open);
-}
-
-function renderHiddenList(){
-  var grid=document.getElementById('hiddenGrid');
-  var sec=document.getElementById('hiddenSection');
-  if(!grid||!sec)return;
-  var hiddenNames=Object.keys(hiddenStudents).filter(function(n){ return hiddenStudents[n]; });
-  if(!hiddenNames.length){ sec.style.display='none'; document.getElementById('hiddenBtn').classList.remove('on'); grid.innerHTML=''; return; }
+async function showHistDetail(s){
+  if(!sbClient)return;
+  document.getElementById('histDetail').style.display='block';
+  document.getElementById('histDetailTitle').textContent=esc(s.sim_title)+' — '+esc(s.class_name||'기본반')+' ('+new Date(s.created_at).toLocaleDateString('ko')+')';
+  var grid=document.getElementById('histStudentGrid');
+  grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">불러오는 중...</div>';
+  var r=await sbClient.from('sim_states').select('*').eq('session_id',s.id);
   grid.innerHTML='';
-  hiddenNames.forEach(function(name){
-    var d=document.createElement('div');
-    d.className='hidden-card';
-    var nameSpan=document.createElement('span');
-    nameSpan.textContent=getDisplayName(name);
-    var showBtn2=document.createElement('button');
-    showBtn2.className='s-icon-btn';showBtn2.title='다시 보기';showBtn2.textContent='👁';
-    showBtn2.addEventListener('click',(function(n){return function(){showStudent(n);};})(name));
-    var delBtn2=document.createElement('button');
-    delBtn2.className='s-icon-btn';delBtn2.title='삭제';delBtn2.textContent='🗑';
-    delBtn2.addEventListener('click',(function(n){return function(){deleteStudent(n);};})(name));
-    var btnRow=document.createElement('div');
-    btnRow.style.cssText='display:flex;gap:3px';
-    btnRow.appendChild(showBtn2);btnRow.appendChild(delBtn2);
-    d.appendChild(nameSpan);d.appendChild(btnRow);
-    grid.appendChild(d);
-  });
+  if(!r.data||!r.data.length){grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">학생 데이터가 없어요.</div>';return;}
+  r.data.forEach(function(row){renderCard(row,grid,true);});
+}
+function closeHistDetail(){
+  document.getElementById('histDetail').style.display='none';
+  document.getElementById('histStudentGrid').innerHTML='';
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

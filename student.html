@@ -162,7 +162,25 @@ async function loadSimulation(){
 // HTML+JS 코드를 컨테이너에 주입 + 스크립트 실행 + 자동 추적/복원 시작
 function injectSim(html){
   var container=document.getElementById('simContainer');
-  container.innerHTML=html;
+
+  // 전체 HTML 파일(<!DOCTYPE>, <html> 포함) 자동 처리
+  var isFullDoc=/<!DOCTYPE|<html[\s>]/i.test(html);
+  var toInject=html;
+  if(isFullDoc){
+    // <style> 추출 (body/html/* 셀렉터 제거 후 주입)
+    var styleBlocks='';
+    html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi,function(_,css){
+      // body, html, * 전체 선택자 규칙은 충돌하므로 제거
+      var filtered=css.replace(/(?:^|\})\s*(?:body|html|\*)[^{]*\{[^}]*\}/g,'');
+      if(filtered.trim()) styleBlocks+='<style>'+filtered+'</style>';
+    });
+    // <body> 내용 추출
+    var bodyMatch=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    var bodyContent=bodyMatch?bodyMatch[1]:html;
+    toInject=styleBlocks+bodyContent;
+  }
+
+  container.innerHTML=toInject;
   var scripts=container.querySelectorAll('script');
   scripts.forEach(function(old){
     var s=document.createElement('script');
