@@ -537,6 +537,8 @@ function initSupa(url,key){
   sbClient=supabase.createClient(url,key);
   document.getElementById('mainTabs').style.display='flex';
   loadSimList();
+  // 기존에 teacher_id 없이 저장된 내 클래스 기록 자동 마이그레이션
+  migrateOldSessions();
   loadHistory();
   var s=localStorage.getItem('session_id'),sid=localStorage.getItem('session_sim_id'),st=localStorage.getItem('session_sim_title'),sc=localStorage.getItem('session_class');
   if(s&&sid){currentSimId=sid;currentSimTitle=st||'';currentClassName=sc||'';startSession(s,false);}
@@ -656,10 +658,21 @@ function startSession(code,isNew){
   document.getElementById('liveDot').classList.add('live');
   if(isNew){
     // 클래스 기록 저장
-    if(sbClient) sbClient.from('sessions').upsert({
-      id:code,sim_id:currentSimId,sim_title:currentSimTitle,
-      class_name:currentClassName,created_at:new Date().toISOString()
-    }).then(function(){});
+    var _tid=sessionStorage.getItem('teacher_loggedin')||'';
+    if(sbClient){
+      sbClient.from('sessions').upsert({
+        id:code,
+        sim_id:parseInt(currentSimId)||null,
+        sim_title:currentSimTitle,
+        class_name:currentClassName,
+        teacher_id:_tid,
+        created_at:new Date().toISOString(),
+        student_count:0
+      },{onConflict:'id'}).then(function(r){
+        if(r.error) console.log('session save err',r.error);
+        else loadHistory();
+      });
+    }
   } else { loadStudentData(); }
   subscribeRealtime();
   loadSimList();
@@ -882,9 +895,12 @@ var histFilter='all';
 async function loadHistory(){
   if(!sbClient){document.getElementById('histList').innerHTML='<div class="hist-empty">먼저 연결 설정을 완료해주세요.</div>';return;}
   var _tid=sessionStorage.getItem('teacher_loggedin')||'';
-  var q=sbClient.from('sessions').select('*').order('created_at',{ascending:false}).limit(100);
-  if(_tid) q=q.eq('teacher_id',_tid);
-  var r=await q;
+  if(!_tid){document.getElementById('histList').innerHTML='<div class="hist-empty">로그인 후 확인할 수 있어요.</div>';return;}
+  // DB에서 엄격하게 내 클래스만 조회
+  var r=await sbClient.from('sessions').select('*')
+    .eq('teacher_id',_tid)
+    .order('created_at',{ascending:false})
+    .limit(200);
   var sessions=r.data||[];
   renderHistFilters(sessions);
   renderHistList(sessions);
@@ -908,8 +924,9 @@ function renderHistFilters(sessions){
 }
 function renderHistList(sessions){
   var list=document.getElementById('histList');list.innerHTML='';
+  // DB에서 이미 내 클래스만 가져왔으므로 바로 필터
   var filtered=histFilter==='all'?sessions:sessions.filter(function(s){return s.sim_title===histFilter;});
-  if(!filtered.length){list.innerHTML='<div class="hist-empty">클래스 기록이 없어요.</div>';return;}
+  if(!filtered.length){list.innerHTML='<div class="hist-empty">아직 클래스 기록이 없어요.<br><span style="font-size:12px">클래스를 열고 종료하면 여기에 표시됩니다</span></div>';return;}
   filtered.forEach(function(s){
     var d=new Date(s.created_at);
     var ds=(d.getMonth()+1)+'/'+(d.getDate())+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
@@ -960,6 +977,12 @@ async function showHistDetail(s){
 
   var grid=document.getElementById('histStudentGrid');
   grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">불러오는 중...</div>';
+  // 내 클래스 기록인지 확인
+  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
+  if(_tid && s.teacher_id && s.teacher_id!==_tid){
+    grid.innerHTML='<div style="color:#e24b4a;font-size:13px;padding:20px;grid-column:1/-1">접근 권한이 없어요.</div>';
+    return;
+  }
   var r=await sbClient.from('sim_states').select('*').eq('session_id',s.id);
   grid.innerHTML='';
   if(!r.data||!r.data.length){grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">학생 데이터가 없어요.</div>';return;}
@@ -968,7 +991,9 @@ async function showHistDetail(s){
 
 // 과거 클래스 이어보기 (실시간 모니터링 재개)
 function resumeSession(s){
-  if(sessionId&&sessionId!==s.id&&!confirm('현재 진행 중인 클래스을 종료하고 이 세션으로 전환할까요?'))return;
+  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
+  if(_tid && s.teacher_id && s.teacher_id!==_tid){alert('내 클래스만 이어볼 수 있어요.');return;}
+  if(sessionId&&sessionId!==s.id&&!confirm('현재 진행 중인 클래스를 종료하고 이 클래스로 전환할까요?'))return;
   if(channel)sbClient.removeChannel(channel);
   sessionId=s.id;
   currentSimId=s.sim_id;currentSimTitle=s.sim_title||'';currentClassName=s.class_name||'기본반';
@@ -995,6 +1020,23 @@ function resumeSession(s){
 function closeHistDetail(){
   document.getElementById('histDetail').style.display='none';
   document.getElementById('histStudentGrid').innerHTML='';
+}
+
+// 기존에 teacher_id 없이 저장된 세션을 현재 선생님 소유로 설정
+async function migrateOldSessions(){
+  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
+  if(!sbClient||!_tid)return;
+  try{
+    // teacher_id가 없거나 빈 문자열인 세션 조회
+    var r=await sbClient.from('sessions').select('id')
+      .or('teacher_id.is.null,teacher_id.eq.');
+    if(r.data&&r.data.length){
+      var ids=r.data.map(function(s){return s.id;});
+      // 해당 세션들을 현재 선생님 소유로 업데이트
+      await sbClient.from('sessions').update({teacher_id:_tid})
+        .in('id',ids);
+    }
+  }catch(e){} // 오류는 무시
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
