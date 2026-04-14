@@ -998,10 +998,20 @@ function renderHiddenList(){
 // ── 학생 모달 ──
 function showStudentModal(name){
   var row=students[name];if(!row||!sessionId||!currentSimId)return;
-  var state=row.state||{},stateStr='';
-  try{stateStr=btoa(encodeURIComponent(JSON.stringify(state)));}catch(e){}
+  var state=row.state||{};
+  // state를 URL 대신 sessionStorage에 임시 저장 (URI Too Long 방지)
+  var previewKey='preview_state_'+Date.now();
+  try{
+    // 썸네일은 용량이 크므로 제거 후 저장
+    var stateToSave=Object.assign({},state);
+    delete stateToSave.thumbnail;
+    sessionStorage.setItem(previewKey, JSON.stringify(stateToSave));
+  }catch(e){}
   var base=window.location.href.replace('teacher.html','student.html');
-  var url=base+'?session='+sessionId+'&sim='+currentSimId+'&name='+encodeURIComponent(name)+'&preview=1'+(stateStr?'&state='+stateStr:'');
+  var url=base+'?session='+sessionId+'&sim='+currentSimId
+    +'&name='+encodeURIComponent(name)
+    +'&preview=1'
+    +'&statekey='+previewKey;
   document.getElementById('modalTitle').innerHTML='👁 <b>'+esc(name)+'</b>의 화면';
   document.getElementById('modalFrame').src=url;
   document.getElementById('simModal').style.display='block';
@@ -1055,15 +1065,35 @@ function renderHistList(sessions){
     var ds=(d.getMonth()+1)+'/'+(d.getDate())+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
     var isLive=sessionId===s.id;
     var el=document.createElement('div');el.className='hist-item';
-    el.innerHTML='<div class="hist-left">'
-      +'<div class="hist-title">'+esc(s.sim_title||'제목 없음')+'</div>'
+
+    var leftDiv=document.createElement('div');leftDiv.className='hist-left';
+    leftDiv.innerHTML='<div class="hist-title">'+esc(s.sim_title||'제목 없음')+'</div>'
       +'<div class="hist-meta">'
       +'<span class="hist-class">'+esc(s.class_name||'기본반')+'</span>'
       +'<span>'+ds+'</span>'
       +(isLive?'<span class="hist-status-live">● 진행 중</span>':'<span class="hist-status-done">'+(s.ended_at?'종료':'미종료')+'</span>')
-      +'</div></div>'
-      +'<div class="hist-count">'+(s.student_count||0)+'명</div>';
-    el.addEventListener('click',function(){showHistDetail(s);});
+      +'</div>';
+
+    var rightDiv=document.createElement('div');
+    rightDiv.style.cssText='display:flex;align-items:center;gap:8px;flex-shrink:0';
+    var countSpan=document.createElement('div');countSpan.className='hist-count';
+    countSpan.textContent=(s.student_count||0)+'명';
+    var delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-sm';
+    delBtn.textContent='삭제';
+    delBtn.title='이 클래스 기록 삭제';
+    delBtn.addEventListener('click',(function(sid,stitle,scls){
+      return function(e){
+        e.stopPropagation();
+        deleteHistSession(sid,stitle,scls);
+      };
+    })(s.id, s.sim_title||'제목 없음', s.class_name||'기본반'));
+
+    rightDiv.appendChild(countSpan);
+    rightDiv.appendChild(delBtn);
+    el.appendChild(leftDiv);
+    el.appendChild(rightDiv);
+    el.querySelector('.hist-left').addEventListener('click',function(){showHistDetail(s);});
     list.appendChild(el);
   });
 }
@@ -1146,6 +1176,30 @@ function closeHistDetail(){
 }
 
 // 기존에 teacher_id 없이 저장된 세션을 현재 선생님 소유로 설정
+async function deleteHistSession(sessionId, simTitle, className){
+  var label=simTitle+' — '+className;
+  if(!confirm('['+label+'] 클래스 기록을 삭제할까요? 학생 활동 데이터도 함께 삭제됩니다.'))return;
+  try{
+    // 학생 상태 데이터 삭제
+    await sbClient.from('sim_states').delete().eq('session_id',sessionId);
+    // 세션 기록 삭제
+    await sbClient.from('sessions').delete().eq('id',sessionId);
+    // 현재 진행 중인 클래스라면 세션 초기화
+    if(window.sessionId===sessionId){
+      window.sessionId=null;
+      document.getElementById('sessionCard').style.display='none';
+      document.getElementById('noSessionMsg').style.display='';
+      document.getElementById('studentsCard').style.display='none';
+      if(channel)sbClient.removeChannel(channel);
+      if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
+      clearGrid();
+      ['session_id','session_sim_id','session_sim_title','session_class'].forEach(function(k){localStorage.removeItem(k);});
+    }
+    closeHistDetail();
+    loadHistory();
+  }catch(e){alert('삭제 중 오류가 발생했어요: '+e.message);}
+}
+
 async function migrateOldSessions(){
   var _tid=sessionStorage.getItem('teacher_loggedin')||'';
   if(!sbClient||!_tid)return;

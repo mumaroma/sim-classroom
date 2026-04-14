@@ -101,8 +101,20 @@ var isPreview=params.get('preview')==='1';
 // 미리보기 모드이면 이름 입력창 즉시 숨김
 if(isPreview) document.getElementById('namePrompt').style.display='none';
 // 상태 복원 (교사 미리보기용)
+// state: URL 파라미터(구버전) 또는 sessionStorage key(신버전)
 var _sp=params.get('state');
-if(_sp){try{window.initialSimState=JSON.parse(decodeURIComponent(atob(_sp)));}catch(e){}}
+var _statekey=params.get('statekey');
+if(_statekey){
+  // teacher가 sessionStorage에 저장한 상태 읽기
+  try{
+    var _sv=sessionStorage.getItem(_statekey);
+    if(_sv) window.initialSimState=JSON.parse(_sv);
+    // 사용 후 삭제
+    sessionStorage.removeItem(_statekey);
+  }catch(e){}
+} else if(_sp){
+  try{window.initialSimState=JSON.parse(decodeURIComponent(atob(_sp)));}catch(e){}
+}
 
 // Supabase 초기화 (teacher.html에서 저장한 키 사용)
 // 1순위: URL 파라미터 (학생 링크에 포함된 키)
