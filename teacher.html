@@ -580,8 +580,24 @@ function switchTab(name){
 // ── 시뮬레이션 목록 ──
 async function loadSimList(){
   if(!sbClient)return;
-  var r=await sbClient.from('simulations').select('id,title,description,created_at,folder').order('folder',{ascending:true}).order('created_at',{ascending:false});
-  var sims=r.data||[];
+  var r, sims;
+  try{
+    r=await sbClient.from('simulations').select('id,title,description,created_at,folder')
+      .order('folder',{ascending:true,nullsFirst:false})
+      .order('created_at',{ascending:false});
+    if(r.error) throw r.error;
+    sims=r.data||[];
+  }catch(e){
+    // folder 컬럼 없으면 fallback
+    try{
+      r=await sbClient.from('simulations').select('id,title,description,created_at')
+        .order('created_at',{ascending:false});
+      sims=(r.data||[]).map(function(s){s.folder='미분류';return s;});
+    }catch(e2){
+      document.getElementById('simList').innerHTML='<div class="empty-msg" style="color:#e24b4a">시뮬레이션을 불러오지 못했어요.<br>Supabase 연결을 확인해주세요.</div>';
+      return;
+    }
+  }
   var list=document.getElementById('simList');
   list.innerHTML='';
   document.getElementById('emptySims').style.display=sims.length?'none':'';
@@ -716,10 +732,13 @@ document.getElementById('saveSim').addEventListener('click',async function(){
   var desc=document.getElementById('simDesc').value.trim();
   var code=document.getElementById('simCode').value.trim();
   if(!title||!code){alert('제목과 코드를 모두 입력해주세요.');return;}
-  var folderSel=document.getElementById('simFolder').value;
-  var folderNew=(document.getElementById('simFolderNew').value||'').trim();
-  var folder=folderNew||folderSel||'미분류';
-  var r=await sbClient.from('simulations').insert({title:title,description:desc,code:code,folder:folder});
+  var folderSel=document.getElementById('simFolder');
+  var folderNewEl=document.getElementById('simFolderNew');
+  var folder=(folderNewEl&&folderNewEl.value.trim())||(folderSel&&folderSel.value)||'미분류';
+  var insertData={title:title,description:desc,code:code};
+  // folder 컬럼이 있으면 포함
+  try{insertData.folder=folder;}catch(e){}
+  var r=await sbClient.from('simulations').insert(insertData);
   if(r.error){alert('저장 실패: '+r.error.message);return;}
   var m=document.getElementById('simSaveMsg');m.style.display='inline';
   setTimeout(function(){m.style.display='none';},1500);
