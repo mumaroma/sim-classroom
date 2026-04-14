@@ -280,8 +280,11 @@ function startAutoTrack(){
   _autoInterval=setInterval(function(){
     if(!document.getElementById('simContainer')){clearInterval(_autoInterval);return;}
     collectAndReport();
-  },1500);
-  collectAndReport();
+  },1200);
+  // 초기 캡처: 레이아웃 완료 후 단계적으로 시도
+  setTimeout(collectAndReport, 300);
+  setTimeout(collectAndReport, 800);
+  setTimeout(collectAndReport, 1600);
 }
 
 function scheduleAutoReport(){
@@ -317,6 +320,16 @@ function collectAndReport(){
       if(keys[0]!==undefined) state.a=inputs[keys[0]];
       if(keys[1]!==undefined) state.b=inputs[keys[1]];
     }
+    // curMode 캡처 시도 (시뮬레이션 전역 변수)
+    try{
+      var c=document.getElementById('simContainer');
+      if(c){
+        var scripts=c.parentNode?c.parentNode.querySelectorAll('script'):[];
+        // curMode는 시뮬레이션 내부 변수라 직접 접근 불가
+        // 대신 활동중으로 표시
+        if(!state.mode) state.mode='활동중';
+      }
+    }catch(ex){}
   }
   doReport(state);
 }
@@ -327,16 +340,19 @@ function captureGamePieces(container){
   if(!arEl)return null;
   var pieces=arEl.querySelectorAll('.pc');
   if(!pieces.length)return null;
-  var aw=arEl.offsetWidth,ah=arEl.offsetHeight;
+  var aw=arEl.offsetWidth||arEl.getBoundingClientRect().width;
+  var ah=arEl.offsetHeight||arEl.getBoundingClientRect().height;
   if(!aw||!ah)return null;
-  return Array.prototype.map.call(pieces,function(el){
-    return{
-      x:(parseFloat(el.style.left)||0)/aw,
-      y:(parseFloat(el.style.top)||0)/ah,
-      w:(parseFloat(el.style.width)||0)/aw,
-      h:(parseFloat(el.style.height)||0)/ah
-    };
+  var result=Array.prototype.map.call(pieces,function(el){
+    var left=parseFloat(el.style.left)||0;
+    var top=parseFloat(el.style.top)||0;
+    var w=parseFloat(el.style.width)||(el.offsetWidth)||0;
+    var h=parseFloat(el.style.height)||(el.offsetHeight)||0;
+    return{x:left/aw, y:top/ah, w:w/aw, h:h/ah};
   });
+  // 모든 값이 0이면 레이아웃 미완성 → null 반환
+  var allZero=result.every(function(p){return p.w===0&&p.h===0;});
+  return allZero?null:result;
 }
 
 // SVG 썸네일 캡처 (CSS 변수 없는 SVG만)

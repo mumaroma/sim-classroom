@@ -954,11 +954,31 @@ function drawPreview(cv,state){
   cv.width=W;var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9fafb';ctx.fillRect(0,0,W,H);
   if(state.pos&&state.pos.length){
-    state.pos.forEach(function(p,i){
-      var x=p.x*W,y=p.y*H,w=p.w*W,h=p.h*H;if(w<1||h<1)return;
-      if(i===1&&state.mode==='sq'){ctx.strokeStyle=PS[i];ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);}
-      else{ctx.fillStyle=PF[i]||'#eee';ctx.fillRect(x,y,w,h);ctx.strokeStyle=PS[i]||'#999';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);}
-    });return;
+    // 전체가 0인지 체크 (미캡처 상태)
+    var hasData=state.pos.some(function(p){return p.w>0&&p.h>0;});
+    if(hasData){
+      state.pos.forEach(function(p,i){
+        var x=p.x*W,y=p.y*H,w=p.w*W,h=p.h*H;
+        if(w<2||h<2)return;
+        var isSqFrame=(i===1&&(state.mode==='sq'||state.mode==='정사각형'));
+        if(isSqFrame){
+          ctx.strokeStyle=PS[i]||'#999';ctx.lineWidth=2;
+          ctx.strokeRect(x,y,w,h);
+        } else {
+          ctx.fillStyle=PF[i]||'#eee';ctx.fillRect(x,y,w,h);
+          ctx.strokeStyle=PS[i]||'#999';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+          // 라벨
+          if(w>30&&h>18){
+            ctx.fillStyle='rgba(0,0,0,.35)';
+            ctx.font='bold 9px -apple-system,sans-serif';
+            ctx.textAlign='center';ctx.textBaseline='middle';
+            var lbls=['(a-b)²','a²','ab','ab','b²'];
+            ctx.fillText(lbls[i]||'',x+w/2,y+h/2);
+          }
+        }
+      });
+      return;
+    }
   }
   ctx.font='500 11px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   if(state.smoothTime!==undefined){
