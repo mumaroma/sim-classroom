@@ -98,6 +98,8 @@ var sbClient=null;
 var reportTimer=null;
 var lastState='';
 var isPreview=params.get('preview')==='1';
+// 미리보기 모드이면 이름 입력창 즉시 숨김
+if(isPreview) document.getElementById('namePrompt').style.display='none';
 // 상태 복원 (교사 미리보기용)
 var _sp=params.get('state');
 if(_sp){try{window.initialSimState=JSON.parse(decodeURIComponent(atob(_sp)));}catch(e){}}
@@ -119,11 +121,17 @@ if(SB_URL&&SB_KEY){
 document.getElementById('nameInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitName();});
 document.getElementById('nameSubmit').addEventListener('click',submitName);
 
-function submitName(){
+// 이름 자동 입력 (URL 파라미터 > 세션 저장값)
+var _autoName=params.get('name')||(!isPreview&&localStorage.getItem('sname_'+sessionId))||'';
+if(_autoName){
+  document.getElementById('nameInput').value=_autoName;
+  submitName();
+}
+
+async function submitName(){
   var n=document.getElementById('nameInput').value.trim();
   if(!n){document.getElementById('nameInput').focus();return;}
   studentName=n;
-  // 이 세션에서 이름 기억 (재접속 시 자동 입력)
   if(sessionId&&!isPreview) localStorage.setItem('sname_'+sessionId,studentName);
   document.getElementById('namePrompt').style.display='none';
   document.getElementById('tbSession').textContent='세션 '+sessionId;
@@ -134,7 +142,18 @@ function submitName(){
   } else {
     document.getElementById('connText').textContent='오프라인';
   }
-  if(isPreview) window.reportSimState=function(){};
+  if(isPreview){
+    window.reportSimState=function(){};
+  } else if(sbClient&&sessionId&&!window.initialSimState){
+    // 재접속: Supabase에서 이전 상태 불러와 복원
+    try{
+      var r=await sbClient.from('sim_states').select('state').eq('session_id',sessionId).eq('student_name',studentName).single();
+      if(r.data&&r.data.state&&Object.keys(r.data.state).length){
+        window.initialSimState=r.data.state;
+        document.getElementById('connText').textContent='이전 활동 복원 중...';
+      }
+    }catch(e){}
+  }
   loadSimulation();
 }
 

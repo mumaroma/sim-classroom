@@ -101,7 +101,7 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .hidden-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .hidden-card{background:#f5f5f5;border-radius:8px;padding:8px;border:1px dashed #ddd;display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:12px;color:#888}
 
-/* 세션 기록 */
+/* 클래스 기록 */
 .hist-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .hist-filter{font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#666}
 .hist-filter.on{background:#3C3489;color:#fff;border-color:#3C3489}
@@ -124,6 +124,22 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .modal-title{font-size:14px;font-weight:700;color:#3C3489}
 
 /* 모바일 */
+/* 로그인 화면 */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#3C3489 0%,#534AB7 50%,#1D9E75 100%);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.login-card{background:#fff;border-radius:20px;padding:32px 28px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo h1{font-size:20px;font-weight:800;color:#3C3489;margin-bottom:4px}
+.login-logo p{font-size:13px;color:#888}
+.login-field{margin-bottom:12px}
+.login-field label{font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:5px}
+.login-field input{width:100%;border:1.5px solid #e0e0dd;border-radius:10px;padding:11px 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .15s}
+.login-field input:focus{border-color:#3C3489}
+.login-btn{width:100%;padding:13px;border-radius:10px;border:none;background:#3C3489;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:background .15s}
+.login-btn:hover{background:#534AB7}
+.login-btn:active{transform:scale(.98)}
+.login-err{font-size:12px;color:#e24b4a;text-align:center;margin-top:8px;min-height:18px}
+.login-toggle{font-size:12px;color:#7F77DD;text-align:center;margin-top:14px;cursor:pointer;text-decoration:underline}
+.login-section-title{font-size:13px;font-weight:700;color:#555;margin:16px 0 10px;padding-top:14px;border-top:1px solid #eee}
 @media(max-width:600px){
   main{padding:10px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
@@ -136,17 +152,62 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 </style>
 </head>
 <body>
+
+<!-- 로그인 화면 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>수학 시뮬레이션 클래스룸</h1>
+      <p>교사 대시보드</p>
+    </div>
+
+    <!-- 로그인 폼 -->
+    <div id="loginForm">
+      <div class="login-field"><label>아이디</label><input type="text" id="loginId" placeholder="아이디 입력" autocomplete="username"></div>
+      <div class="login-field"><label>비밀번호</label><input type="password" id="loginPw" placeholder="비밀번호 입력" autocomplete="current-password"></div>
+      <button class="login-btn" id="loginBtn">로그인</button>
+      <div class="login-err" id="loginErr"></div>
+      <div class="login-toggle" onclick="showSetup()">처음 사용하시나요? 계정 만들기</div>
+    </div>
+
+    <!-- 최초 설정 폼 -->
+    <div id="setupForm" style="display:none">
+      <!-- 초대 코드로 가입 -->
+      <div id="inviteSection">
+        <div class="login-field">
+          <label>초대 코드 (동료 선생님께 받은 경우)</label>
+          <input type="text" id="inviteCode" placeholder="붙여넣기" autocomplete="off" style="font-size:12px;letter-spacing:1px">
+        </div>
+        <button class="login-btn" id="inviteApplyBtn" style="background:#1D9E75;margin-bottom:6px" onclick="applyInvite()">초대 코드로 Supabase 자동 연결</button>
+        <div style="text-align:center;font-size:12px;color:#bbb;margin-bottom:10px">— 또는 직접 입력 —</div>
+      </div>
+      <div class="login-field"><label>아이디 *</label><input type="text" id="setupId" placeholder="사용할 아이디" autocomplete="username"></div>
+      <div class="login-field"><label>비밀번호 *</label><input type="password" id="setupPw" placeholder="비밀번호 (6자 이상)" autocomplete="new-password"></div>
+      <div class="login-field"><label>비밀번호 확인 *</label><input type="password" id="setupPw2" placeholder="비밀번호 재입력" autocomplete="new-password"></div>
+      <div class="login-section-title">🔗 Supabase 연결 정보</div>
+      <div class="login-field"><label>Project URL *</label><input type="text" id="setupUrl" placeholder="https://xxxxxxxx.supabase.co"></div>
+      <div class="login-field"><label>anon public 키 *</label><input type="password" id="setupKey" placeholder="eyJhbGci..."></div>
+      <button class="login-btn" id="setupBtn">계정 만들기 및 시작</button>
+      <div class="login-err" id="setupErr"></div>
+      <div class="login-toggle" onclick="showLogin()">이미 계정이 있어요</div>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">수학 시뮬레이션<span> 클래스룸</span></div>
   <div class="hbtns">
-    <button class="hbtn" id="toggleSetup">⚙ 설정</button>
+    <span id="headerUser" style="font-size:12px;color:#888;margin-right:4px"></span>
+    <button class="hbtn" onclick="showInviteModal()">🔗 초대</button>
+    <button class="hbtn" id="toggleSetup">⚙ Supabase</button>
+    <button class="hbtn" id="logoutBtn" onclick="doLogout()">로그아웃</button>
   </div>
 </header>
 
 <!-- 반 이름 입력 모달 -->
 <div id="classModal">
   <div class="modal-inner">
-    <h3>세션 시작</h3>
+    <h3>클래스 시작</h3>
     <p id="classModalSimTitle" style="color:#3C3489;font-weight:600;margin-bottom:12px"></p>
     <p>반 이름을 입력하세요</p>
     <input type="text" id="classNameInput" placeholder="예: 1반, 2반, A반" maxlength="20">
@@ -154,6 +215,31 @@ main{max-width:1100px;margin:0 auto;padding:16px}
       <button style="background:#eee;color:#555" onclick="closeClassModal()">취소</button>
       <button style="background:#3C3489;color:#fff" onclick="confirmOpenSession()">시작</button>
     </div>
+  </div>
+</div>
+
+<!-- 초대 모달 -->
+<div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:none;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeInviteModal()">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:460px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#3C3489">🔗 동료 선생님 초대</div>
+      <button class="btn btn-outline btn-sm" onclick="closeInviteModal()">✕</button>
+    </div>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;line-height:1.6">
+      아래 초대 코드를 동료 선생님께 공유하세요.<br>
+      선생님이 계정 만들기 시 붙여넣으면 Supabase가 자동 연결돼요.
+    </p>
+    <div style="background:#f0f0fe;border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:6px">초대 코드 (복사해서 공유)</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="inviteCodeOut" readonly style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:11px;font-family:monospace;background:#fff;outline:none;color:#3C3489;font-weight:600">
+        <button class="btn btn-primary btn-sm" onclick="copyInviteCode()">복사</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#aaa;line-height:1.6">
+      ⚠️ 초대 코드에는 Supabase 접속 정보가 포함돼요.<br>학교 동료에게만 공유하세요.
+    </p>
+    <div style="font-size:12px;color:#1D9E75;text-align:center;margin-top:8px;display:none" id="inviteCopied">✓ 복사됐어요!</div>
   </div>
 </div>
 
@@ -185,13 +271,13 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 
   <!-- 탭 -->
   <div class="tabs" id="mainTabs" style="display:none">
-    <button class="tab on" onclick="switchTab('sim')">📚 시뮬레이션</button>
-    <button class="tab" onclick="switchTab('live')">🟢 진행 중</button>
-    <button class="tab" onclick="switchTab('hist')">🕘 세션 기록</button>
+    <button class="tab on" onclick="switchTab('live')">🟢 진행 중</button>
+    <button class="tab" onclick="switchTab('sim')">📚 시뮬레이션</button>
+    <button class="tab" onclick="switchTab('hist')">🕘 클래스 기록</button>
   </div>
 
   <!-- 탭1: 시뮬레이션 목록 -->
-  <div class="tab-panel on" id="tab-sim">
+  <div class="tab-panel" id="tab-sim">
     <div class="card">
       <div class="card-title">
         <span>시뮬레이션 목록</span>
@@ -214,7 +300,7 @@ main{max-width:1100px;margin:0 auto;padding:16px}
   </div>
 
   <!-- 탭2: 진행 중 세션 -->
-  <div class="tab-panel" id="tab-live">
+  <div class="tab-panel on" id="tab-live">
     <div class="card" id="sessionCard">
       <div class="card-title">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
@@ -222,11 +308,11 @@ main{max-width:1100px;margin:0 auto;padding:16px}
           <span class="class-badge" id="sessionClassBadge"></span>
           <span style="font-size:12px;color:#555" id="sessionSimName"></span>
         </div>
-        <button class="btn btn-outline btn-sm" id="endSession">종료</button>
+        <button class="btn btn-outline btn-sm" id="endSession">클래스 종료</button>
       </div>
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
         <div>
-          <div style="font-size:11px;color:#888;margin-bottom:2px">세션 코드</div>
+          <div style="font-size:11px;color:#888;margin-bottom:2px">클래스 코드</div>
           <div class="session-code" id="sessionCode">——</div>
         </div>
       </div>
@@ -238,8 +324,8 @@ main{max-width:1100px;margin:0 auto;padding:16px}
       </div>
     </div>
     <div class="card" id="noSessionMsg" style="text-align:center;padding:32px;color:#aaa;font-size:13px">
-      진행 중인 세션이 없어요.<br>
-      <span style="font-size:12px">시뮬레이션 탭에서 ▶ 세션 열기를 눌러보세요</span>
+      진행 중인 클래스이 없어요.<br>
+      <span style="font-size:12px">시뮬레이션 탭에서 ▶ 클래스 열기를 눌러보세요</span>
     </div>
     <div class="card" id="studentsCard">
       <div class="ctrl-bar">
@@ -265,16 +351,16 @@ main{max-width:1100px;margin:0 auto;padding:16px}
     </div>
   </div>
 
-  <!-- 탭3: 세션 기록 -->
+  <!-- 탭3: 클래스 기록 -->
   <div class="tab-panel" id="tab-hist">
     <div class="card">
       <div class="card-title">
-        <span>세션 기록</span>
+        <span>클래스 기록</span>
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">↺ 새로고침</button>
       </div>
       <div class="hist-filters" id="histFilters"></div>
       <div class="hist-list" id="histList">
-        <div class="hist-empty">세션 기록을 불러오는 중...</div>
+        <div class="hist-empty">클래스 기록을 불러오는 중...</div>
       </div>
     </div>
     <!-- 기록 상세: 학생 상태 -->
@@ -297,14 +383,135 @@ var PF=['#EEEDFE','#FAECE7','#E1F5EE','#E1F5EE','#E6F1FB'];
 var PS=['#7F77DD','#D85A30','#1D9E75','#1D9E75','#378ADD'];
 
 // ── 초기 로드 ──
+// ── 로그인 시스템 ──
+async function hashPw(pw){
+  var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+function showLogin(){ document.getElementById('loginForm').style.display=''; document.getElementById('setupForm').style.display='none'; }
+function showSetup(){ document.getElementById('loginForm').style.display='none'; document.getElementById('setupForm').style.display=''; }
+
+// Enter 키 처리
+['loginId','loginPw'].forEach(function(id){
+  document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+});
+['setupId','setupPw','setupPw2','setupUrl','setupKey'].forEach(function(id){
+  document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')doSetup();});
+});
+document.getElementById('loginBtn').addEventListener('click',doLogin);
+document.getElementById('setupBtn').addEventListener('click',doSetup);
+
+async function doLogin(){
+  var id=document.getElementById('loginId').value.trim();
+  var pw=document.getElementById('loginPw').value;
+  var err=document.getElementById('loginErr');
+  if(!id||!pw){err.textContent='아이디와 비밀번호를 입력해주세요.';return;}
+  var stored=localStorage.getItem('teacher_'+id);
+  if(!stored){err.textContent='존재하지 않는 아이디예요.';return;}
+  var profile=JSON.parse(stored);
+  var hash=await hashPw(pw);
+  if(hash!==profile.pwHash){err.textContent='비밀번호가 틀렸어요.';return;}
+  // 로그인 성공
+  sessionStorage.setItem('teacher_loggedin',id);
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('headerUser').textContent=id+' 님';
+  initSupa(profile.sbUrl,profile.sbKey);
+}
+
+async function doSetup(){
+  var id=document.getElementById('setupId').value.trim();
+  var pw=document.getElementById('setupPw').value;
+  var pw2=document.getElementById('setupPw2').value;
+  var url=document.getElementById('setupUrl').value.trim();
+  var key=document.getElementById('setupKey').value.trim();
+  var err=document.getElementById('setupErr');
+  if(!id||!pw||!pw2){err.textContent='아이디와 비밀번호를 입력해주세요.';return;}
+  if(pw.length<6){err.textContent='비밀번호는 6자 이상이어야 해요.';return;}
+  if(pw!==pw2){err.textContent='비밀번호가 일치하지 않아요.';return;}
+  if(!url||!key){err.textContent='Supabase 연결 정보를 입력해주세요.';return;}
+  var hash=await hashPw(pw);
+  var profile={pwHash:hash,sbUrl:url,sbKey:key,createdAt:new Date().toISOString()};
+  localStorage.setItem('teacher_'+id,JSON.stringify(profile));
+  localStorage.setItem('sb_url',url);
+  localStorage.setItem('sb_key',key);
+  sessionStorage.setItem('teacher_loggedin',id);
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('headerUser').textContent=id+' 님';
+  initSupa(url,key);
+}
+
+function doLogout(){
+  if(!confirm('로그아웃 할까요?'))return;
+  sessionStorage.removeItem('teacher_loggedin');
+  location.reload();
+}
+
+// ── 초대 코드 ──
+function showInviteModal(){
+  var loggedIn=sessionStorage.getItem('teacher_loggedin');
+  if(!loggedIn){alert('로그인 후 사용 가능해요.');return;}
+  var stored=localStorage.getItem('teacher_'+loggedIn);
+  if(!stored){return;}
+  var profile=JSON.parse(stored);
+  // 초대 코드 = Base64(JSON) - URL/Key 포함
+  var payload=JSON.stringify({sbUrl:profile.sbUrl,sbKey:profile.sbKey,invitedBy:loggedIn});
+  var code=btoa(unescape(encodeURIComponent(payload)));
+  document.getElementById('inviteCodeOut').value=code;
+  document.getElementById('inviteModal').style.display='flex';
+  document.getElementById('inviteCopied').style.display='none';
+}
+function closeInviteModal(){
+  document.getElementById('inviteModal').style.display='none';
+}
+function copyInviteCode(){
+  navigator.clipboard.writeText(document.getElementById('inviteCodeOut').value).then(function(){
+    document.getElementById('inviteCopied').style.display='block';
+    setTimeout(function(){document.getElementById('inviteCopied').style.display='none';},2000);
+  });
+}
+function applyInvite(){
+  var code=document.getElementById('inviteCode').value.trim();
+  if(!code){alert('초대 코드를 붙여넣어 주세요.');return;}
+  try{
+    var payload=JSON.parse(decodeURIComponent(escape(atob(code))));
+    if(!payload.sbUrl||!payload.sbKey){alert('올바르지 않은 초대 코드예요.');return;}
+    document.getElementById('setupUrl').value=payload.sbUrl;
+    document.getElementById('setupKey').value=payload.sbKey;
+    document.getElementById('inviteCode').value='';
+    document.getElementById('inviteSection').style.display='none';
+    // 안내 메시지
+    var info=document.createElement('div');
+    info.style.cssText='background:#e1f5ee;border-radius:8px;padding:10px 14px;font-size:12px;color:#085041;margin-bottom:10px;text-align:center';
+    info.textContent='✓ Supabase 연결 정보가 자동 입력됐어요! 아이디·비밀번호만 입력하세요.';
+    document.getElementById('setupPw2').parentNode.after(info);
+  }catch(e){alert('올바르지 않은 초대 코드예요.');}
+}
+
 window.addEventListener('load',function(){
-  var url=localStorage.getItem('sb_url'),key=localStorage.getItem('sb_key');
-  if(url&&key){
-    document.getElementById('sbUrl').value=url;
-    document.getElementById('sbKey').value=key;
-    document.getElementById('setupCard').style.display='none';
-    initSupa(url,key);
+  // 이미 로그인된 세션이면 바로 연결
+  var loggedIn=sessionStorage.getItem('teacher_loggedin');
+  if(loggedIn){
+    var stored=localStorage.getItem('teacher_'+loggedIn);
+    if(stored){
+      var profile=JSON.parse(stored);
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('headerUser').textContent=loggedIn+' 님';
+      // Supabase 설정 창에도 값 표시
+      document.getElementById('sbUrl').value=profile.sbUrl||'';
+      document.getElementById('sbKey').value=profile.sbKey||'';
+      initSupa(profile.sbUrl,profile.sbKey);
+      return;
+    }
   }
+  // 계정이 있으면 로그인 폼, 없으면 가입 폼
+  var hasAccount=Object.keys(localStorage).some(function(k){return k.startsWith('teacher_')&&k!=='teacher_loggedin';});
+  if(!hasAccount) showSetup();
+  else showLogin();
+  // 기존 Supabase 키 자동 채우기 (가입 폼)
+  var url=localStorage.getItem('sb_url'),key=localStorage.getItem('sb_key');
+  if(url) document.getElementById('setupUrl').value=url;
+  if(key) document.getElementById('setupKey').value=key;
 });
 
 document.getElementById('toggleSetup').addEventListener('click',function(){
@@ -315,6 +522,12 @@ document.getElementById('saveConfig').addEventListener('click',function(){
   var url=document.getElementById('sbUrl').value.trim(),key=document.getElementById('sbKey').value.trim();
   if(!url||!key){alert('URL과 키를 모두 입력해주세요.');return;}
   localStorage.setItem('sb_url',url);localStorage.setItem('sb_key',key);
+  // 로그인된 계정의 profile도 업데이트
+  var loggedIn=sessionStorage.getItem('teacher_loggedin');
+  if(loggedIn){
+    var stored=localStorage.getItem('teacher_'+loggedIn);
+    if(stored){var p=JSON.parse(stored);p.sbUrl=url;p.sbKey=key;localStorage.setItem('teacher_'+loggedIn,JSON.stringify(p));}
+  }
   document.getElementById('configStatus').style.display='inline';
   document.getElementById('setupCard').style.display='none';
   initSupa(url,key);
@@ -332,7 +545,7 @@ function initSupa(url,key){
 
 // ── 탭 전환 ──
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('on',['sim','live','hist'][i]===name);});
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('on',['live','sim','hist'][i]===name);});
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('on');});
   document.getElementById('tab-'+name).classList.add('on');
   if(name==='hist') loadHistory();
@@ -358,7 +571,7 @@ async function loadSimList(){
       +'<div class="sim-actions">'+(isRunning?'<span class="badge-running">진행 중</span>':'')
       +'</div>';
     var openBtn=document.createElement('button');
-    openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 세션 열기';
+    openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 클래스 열기';
     openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
     var delBtn=document.createElement('button');
     delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
@@ -397,7 +610,7 @@ async function deleteSim(id){
 
 // ── 반 이름 모달 ──
 function askClassName(simId,simTitle){
-  if(currentSimId&&!confirm('현재 세션을 종료하고 새 세션을 시작할까요?'))return;
+  if(currentSimId&&!confirm('현재 클래스을 종료하고 새 세션을 시작할까요?'))return;
   pendingSimId=simId;pendingSimTitle=simTitle;
   document.getElementById('classModalSimTitle').textContent=simTitle;
   document.getElementById('classNameInput').value='';
@@ -412,7 +625,7 @@ function confirmOpenSession(){
   openSession(pendingSimId,pendingSimTitle,className);
 }
 
-// ── 세션 열기/종료 ──
+// ── 클래스 열기/종료 ──
 function openSession(simId,simTitle,className){
   currentSimId=simId;currentSimTitle=simTitle;currentClassName=className;
   localStorage.setItem('session_sim_id',simId);
@@ -442,7 +655,7 @@ function startSession(code,isNew){
   document.getElementById('studentsCard').style.display='block';
   document.getElementById('liveDot').classList.add('live');
   if(isNew){
-    // 세션 기록 저장
+    // 클래스 기록 저장
     if(sbClient) sbClient.from('sessions').upsert({
       id:code,sim_id:currentSimId,sim_title:currentSimTitle,
       class_name:currentClassName,created_at:new Date().toISOString()
@@ -453,8 +666,8 @@ function startSession(code,isNew){
 }
 
 document.getElementById('endSession').addEventListener('click',function(){
-  if(!confirm('세션을 종료할까요?'))return;
-  // 세션 종료 기록
+  if(!confirm('클래스를 종료할까요?'))return;
+  // 클래스 종료 기록
   var n=Object.keys(students).length;
   if(sbClient&&sessionId) sbClient.from('sessions').update({
     ended_at:new Date().toISOString(),student_count:n
@@ -465,6 +678,7 @@ document.getElementById('endSession').addEventListener('click',function(){
   document.getElementById('noSessionMsg').style.display='';
   document.getElementById('studentsCard').style.display='none';
   if(channel)sbClient.removeChannel(channel);
+  if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
   clearGrid();loadSimList();loadHistory();
 });
 
@@ -482,11 +696,20 @@ async function loadStudentData(){
   var r=await sbClient.from('sim_states').select('*').eq('session_id',sessionId);
   if(r.data)r.data.forEach(upsertStudent);
 }
+var _pollTimer=null;
 function subscribeRealtime(){
   if(channel)sbClient.removeChannel(channel);
   channel=sbClient.channel('s_'+sessionId)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_states',filter:'session_id=eq.'+sessionId},
       function(p){if(p.new)upsertStudent(p.new);}).subscribe();
+  // 실시간 구독 보조: 1초 폴링으로 놓친 업데이트 보완
+  if(_pollTimer)clearInterval(_pollTimer);
+  _pollTimer=setInterval(function(){
+    if(!sbClient||!sessionId)return;
+    sbClient.from('sim_states').select('*').eq('session_id',sessionId)
+      .gt('updated_at', new Date(Date.now()-3000).toISOString()) // 최근 3초 변경분
+      .then(function(r){if(r.data)r.data.forEach(upsertStudent);});
+  },1000);
 }
 function upsertStudent(row){
   students[row.student_name]=row;
@@ -506,6 +729,7 @@ function updateBar(){
 }
 function clearGrid(){
   students={};cardElements={};cachedSimCode=null;
+  if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
   document.getElementById('studentGrid').innerHTML='<div class="empty-students" id="emptyState"><div style="font-size:28px">👥</div><p style="margin-top:8px;font-size:13px">학생이 접속하면 표시됩니다</p></div>';
   document.getElementById('statusText').textContent='학생 대기 중...';
 }
@@ -653,11 +877,14 @@ function closeModal(){
   document.body.style.overflow='';
 }
 
-// ── 세션 기록 ──
+// ── 클래스 기록 ──
 var histFilter='all';
 async function loadHistory(){
   if(!sbClient){document.getElementById('histList').innerHTML='<div class="hist-empty">먼저 연결 설정을 완료해주세요.</div>';return;}
-  var r=await sbClient.from('sessions').select('*').order('created_at',{ascending:false}).limit(100);
+  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
+  var q=sbClient.from('sessions').select('*').order('created_at',{ascending:false}).limit(100);
+  if(_tid) q=q.eq('teacher_id',_tid);
+  var r=await q;
   var sessions=r.data||[];
   renderHistFilters(sessions);
   renderHistList(sessions);
@@ -682,7 +909,7 @@ function renderHistFilters(sessions){
 function renderHistList(sessions){
   var list=document.getElementById('histList');list.innerHTML='';
   var filtered=histFilter==='all'?sessions:sessions.filter(function(s){return s.sim_title===histFilter;});
-  if(!filtered.length){list.innerHTML='<div class="hist-empty">세션 기록이 없어요.</div>';return;}
+  if(!filtered.length){list.innerHTML='<div class="hist-empty">클래스 기록이 없어요.</div>';return;}
   filtered.forEach(function(s){
     var d=new Date(s.created_at);
     var ds=(d.getMonth()+1)+'/'+(d.getDate())+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
@@ -703,13 +930,67 @@ function renderHistList(sessions){
 async function showHistDetail(s){
   if(!sbClient)return;
   document.getElementById('histDetail').style.display='block';
-  document.getElementById('histDetailTitle').textContent=esc(s.sim_title)+' — '+esc(s.class_name||'기본반')+' ('+new Date(s.created_at).toLocaleDateString('ko')+')';
+
+  // 제목 + 이어보기/새세션 버튼
+  var titleEl=document.getElementById('histDetailTitle');
+  titleEl.innerHTML='';
+  var titleSpan=document.createElement('span');
+  titleSpan.textContent=esc(s.sim_title)+' — '+esc(s.class_name||'기본반')+' ('+new Date(s.created_at).toLocaleDateString('ko')+')';
+  var btnWrap=document.createElement('div');btnWrap.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+
+  // 이어보기 버튼
+  var resumeBtn=document.createElement('button');
+  resumeBtn.className='btn btn-outline btn-sm';
+  resumeBtn.textContent='📡 클래스 이어보기';
+  resumeBtn.title='이 클래스를 실시간으로 다시 모니터링';
+  resumeBtn.addEventListener('click',function(){resumeSession(s);});
+
+  // 새 세션 버튼
+  var newBtn=document.createElement('button');
+  newBtn.className='btn btn-green btn-sm';
+  newBtn.textContent='▶ 새 클래스로 시작';
+  newBtn.title='같은 시뮬레이션·반으로 새 클래스 열기';
+  newBtn.addEventListener('click',function(){
+    openSession(s.sim_id,s.sim_title,s.class_name||'기본반');
+    closeHistDetail();
+  });
+
+  btnWrap.appendChild(resumeBtn);btnWrap.appendChild(newBtn);
+  titleEl.appendChild(titleSpan);titleEl.appendChild(btnWrap);
+
   var grid=document.getElementById('histStudentGrid');
   grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">불러오는 중...</div>';
   var r=await sbClient.from('sim_states').select('*').eq('session_id',s.id);
   grid.innerHTML='';
   if(!r.data||!r.data.length){grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">학생 데이터가 없어요.</div>';return;}
   r.data.forEach(function(row){renderCard(row,grid,true);});
+}
+
+// 과거 클래스 이어보기 (실시간 모니터링 재개)
+function resumeSession(s){
+  if(sessionId&&sessionId!==s.id&&!confirm('현재 진행 중인 클래스을 종료하고 이 세션으로 전환할까요?'))return;
+  if(channel)sbClient.removeChannel(channel);
+  sessionId=s.id;
+  currentSimId=s.sim_id;currentSimTitle=s.sim_title||'';currentClassName=s.class_name||'기본반';
+  localStorage.setItem('session_id',s.id);
+  localStorage.setItem('session_sim_id',s.sim_id);
+  localStorage.setItem('session_sim_title',s.sim_title||'');
+  localStorage.setItem('session_class',s.class_name||'기본반');
+  clearGrid();hiddenStudents={};anonMap={};anonCount=0;
+  document.getElementById('sessionCode').textContent=s.id;
+  document.getElementById('sessionClassBadge').textContent=currentClassName;
+  document.getElementById('sessionSimName').textContent='📌 '+currentSimTitle;
+  var base=window.location.href.replace('teacher.html','student.html');
+  var link=base+'?session='+s.id+'&sim='+s.sim_id;
+  document.getElementById('studentLink').value=link;
+  document.getElementById('openLink').href=link;
+  document.getElementById('sessionCard').style.display='block';
+  document.getElementById('noSessionMsg').style.display='none';
+  document.getElementById('studentsCard').style.display='block';
+  document.getElementById('liveDot').classList.add('live');
+  loadStudentData();subscribeRealtime();loadSimList();
+  switchTab('live');
+  closeHistDetail();
 }
 function closeHistDetail(){
   document.getElementById('histDetail').style.display='none';

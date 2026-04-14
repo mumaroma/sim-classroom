@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>수학 시뮬레이션 클래스룸</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#3C3489 0%,#534AB7 50%,#1D9E75 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.wrap{width:100%;max-width:380px}
+.logo{text-align:center;margin-bottom:32px}
+.logo-title{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px}
+.logo-sub{font-size:13px;color:rgba(255,255,255,.7)}
+
+.card{background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+
+/* 스텝 */
+.step{display:none}.step.on{display:block}
+
+.step-label{font-size:11px;font-weight:700;color:#7F77DD;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.step-title{font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:6px}
+.step-desc{font-size:13px;color:#888;margin-bottom:24px;line-height:1.6}
+
+/* 코드 입력 */
+.code-input{
+  width:100%;text-align:center;letter-spacing:8px;
+  font-size:28px;font-weight:800;color:#3C3489;
+  border:2px solid #e0e0dd;border-radius:12px;
+  padding:16px 12px;outline:none;font-family:inherit;
+  text-transform:uppercase;
+  transition:border-color .15s;
+}
+.code-input:focus{border-color:#7F77DD}
+.code-input::placeholder{letter-spacing:4px;font-size:20px;color:#ccc;font-weight:400}
+
+/* 이름 입력 */
+.name-input{
+  width:100%;text-align:center;
+  font-size:20px;font-weight:600;color:#1a1a1a;
+  border:2px solid #e0e0dd;border-radius:12px;
+  padding:14px 16px;outline:none;font-family:inherit;
+  transition:border-color .15s;
+}
+.name-input:focus{border-color:#1D9E75}
+
+/* 클래스 정보 미리보기 */
+.class-preview{
+  background:#f0f0fe;border-radius:10px;padding:14px 16px;
+  margin-bottom:20px;text-align:center;
+}
+.class-preview .sim-name{font-size:15px;font-weight:700;color:#3C3489;margin-bottom:4px}
+.class-preview .class-name{font-size:13px;color:#888}
+.class-preview .class-badge{display:inline-block;background:#3C3489;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:6px}
+
+/* 버튼 */
+.btn{
+  width:100%;padding:15px;border-radius:12px;border:none;
+  font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:all .15s;margin-top:14px;
+}
+.btn-purple{background:#3C3489;color:#fff}
+.btn-purple:hover{background:#534AB7}
+.btn-purple:active{transform:scale(.98)}
+.btn-green{background:#1D9E75;color:#fff}
+.btn-green:hover{background:#0F6E56}
+.btn-green:active{transform:scale(.98)}
+.btn-outline{background:#fff;color:#555;border:1px solid #ddd;margin-top:10px;font-size:14px;padding:11px}
+.btn-outline:hover{background:#f5f5f5}
+.btn:disabled{background:#ccc;cursor:default;transform:none}
+
+/* 에러 */
+.err{font-size:13px;color:#e24b4a;text-align:center;margin-top:10px;min-height:20px}
+
+/* 로딩 */
+.loading{text-align:center;padding:20px 0}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid #e0e0dd;border-top-color:#7F77DD;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:#888;margin-top:10px}
+
+/* 최근 코드 */
+.recent-codes{margin-top:16px}
+.recent-label{font-size:11px;color:#bbb;font-weight:600;margin-bottom:8px;text-align:center}
+.recent-list{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.recent-chip{background:#f0f0fe;color:#534AB7;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;cursor:pointer;border:1px solid #d0cff0;letter-spacing:2px}
+.recent-chip:hover{background:#e0e0fd}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-title">수학 시뮬레이션 클래스룸</div>
+    <div class="logo-sub">선생님께서 공유한 클래스 코드를 입력하세요</div>
+  </div>
+
+  <div class="card">
+
+    <!-- Step 1: 클래스 코드 입력 -->
+    <div class="step on" id="step1">
+      <div class="step-label">Step 1 of 2</div>
+      <div class="step-title">클래스 코드 입력</div>
+      <div class="step-desc">선생님께서 알려주신 6자리 코드를 입력하세요</div>
+      <input class="code-input" id="codeInput" maxlength="6" placeholder="XXXXXX" autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="err" id="codeErr"></div>
+      <button class="btn btn-purple" id="codeBtn" onclick="checkCode()">다음 →</button>
+
+      <div class="recent-codes" id="recentSection" style="display:none">
+        <div class="recent-label">최근 입력한 코드</div>
+        <div class="recent-list" id="recentList"></div>
+      </div>
+    </div>
+
+    <!-- Step 2: 이름 입력 -->
+    <div class="step" id="step2">
+      <div class="class-preview" id="classPreview"></div>
+      <div class="step-label">Step 2 of 2</div>
+      <div class="step-title">내 이름 입력</div>
+      <div class="step-desc">출석부에 있는 이름을 그대로 입력하세요</div>
+      <input class="name-input" id="nameInput" maxlength="20" placeholder="홍길동" autocomplete="off">
+      <div class="err" id="nameErr"></div>
+      <button class="btn btn-green" id="nameBtn" onclick="enterClass()">시작하기 →</button>
+      <button class="btn btn-outline" onclick="goBack()">← 코드 다시 입력</button>
+    </div>
+
+    <!-- 로딩 -->
+    <div class="step" id="stepLoading">
+      <div class="loading">
+        <div class="spin"></div>
+        <div class="loading-text" id="loadingText">클래스 확인 중...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var sbClient=null;
+var currentSession=null; // {id, sim_id, sim_title, class_name}
+
+// Supabase 초기화 (localStorage에 저장된 키 사용)
+var SB_URL=localStorage.getItem('sb_url')||'';
+var SB_KEY=localStorage.getItem('sb_key')||'';
+if(SB_URL&&SB_KEY){
+  sbClient=supabase.createClient(SB_URL,SB_KEY);
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+}
+
+// 최근 코드 불러오기
+function loadRecentCodes(){
+  try{
+    var recent=JSON.parse(localStorage.getItem('recent_codes')||'[]');
+    if(!recent.length)return;
+    document.getElementById('recentSection').style.display='';
+    var list=document.getElementById('recentList');
+    list.innerHTML='';
+    recent.slice(0,5).forEach(function(code){
+      var chip=document.createElement('span');
+      chip.className='recent-chip';
+      chip.textContent=code;
+      chip.addEventListener('click',function(){
+        document.getElementById('codeInput').value=code;
+        checkCode();
+      });
+      list.appendChild(chip);
+    });
+  }catch(e){}
+}
+
+function saveRecentCode(code){
+  try{
+    var recent=JSON.parse(localStorage.getItem('recent_codes')||'[]');
+    recent=recent.filter(function(c){return c!==code;});
+    recent.unshift(code);
+    localStorage.setItem('recent_codes',JSON.stringify(recent.slice(0,5)));
+  }catch(e){}
+}
+
+// 저장된 이름 불러오기 (재접속 편의)
+function loadSavedName(sessionId){
+  return localStorage.getItem('sname_'+sessionId)||'';
+}
+
+// 스텝 전환
+function showStep(id){
+  document.querySelectorAll('.step').forEach(function(s){s.classList.remove('on');});
+  document.getElementById(id).classList.add('on');
+}
+
+// URL에서 코드 자동 입력
+var params=new URLSearchParams(location.search);
+var urlCode=params.get('code')||params.get('session')||'';
+if(urlCode){
+  document.getElementById('codeInput').value=urlCode.toUpperCase();
+  // 잠깐 후 자동 확인
+  setTimeout(checkCode,300);
+} else {
+  loadRecentCodes();
+}
+
+// 코드 입력창 자동 대문자
+document.getElementById('codeInput').addEventListener('input',function(){
+  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  document.getElementById('codeErr').textContent='';
+});
+document.getElementById('codeInput').addEventListener('keydown',function(e){
+  if(e.key==='Enter') checkCode();
+});
+document.getElementById('nameInput').addEventListener('keydown',function(e){
+  if(e.key==='Enter') enterClass();
+});
+
+async function checkCode(){
+  var code=document.getElementById('codeInput').value.trim().toUpperCase();
+  if(code.length<4){document.getElementById('codeErr').textContent='코드는 최소 4자리예요';return;}
+
+  if(!sbClient){
+    // Supabase 없으면 코드만 가지고 student.html로 이동 (오프라인 대응)
+    currentSession={id:code,sim_id:null,sim_title:'',class_name:''};
+    showStep('step2');
+    document.getElementById('nameInput').focus();
+    return;
+  }
+
+  showStep('stepLoading');
+  document.getElementById('loadingText').textContent='클래스 확인 중...';
+
+  try{
+    var r=await sbClient.from('sessions').select('id,sim_id,sim_title,class_name,ended_at').eq('id',code).single();
+    if(r.error||!r.data){
+      showStep('step1');
+      document.getElementById('codeErr').textContent='존재하지 않는 클래스 코드예요. 다시 확인해 주세요.';
+      return;
+    }
+    currentSession=r.data;
+    saveRecentCode(code);
+
+    // 클래스 정보 표시
+    var endedStr=r.data.ended_at
+      ?'<div class="class-badge" style="background:#888">종료된 클래스</div>'
+      :'<div class="class-badge">진행 중</div>';
+    document.getElementById('classPreview').innerHTML=
+      '<div class="sim-name">'+escHtml(r.data.sim_title||'시뮬레이션')+'</div>'
+      +'<div class="class-name">'+escHtml(r.data.class_name||'기본반')+'</div>'
+      +endedStr;
+
+    showStep('step2');
+    // 이전에 입력한 이름 자동 입력
+    var saved=loadSavedName(code);
+    if(saved) document.getElementById('nameInput').value=saved;
+    document.getElementById('nameInput').focus();
+    if(saved) document.getElementById('nameInput').select();
+
+  }catch(e){
+    showStep('step1');
+    document.getElementById('codeErr').textContent='오류가 발생했어요. 다시 시도해 주세요.';
+  }
+}
+
+async function enterClass(){
+  var name=document.getElementById('nameInput').value.trim();
+  if(!name){document.getElementById('nameErr').textContent='이름을 입력해 주세요';return;}
+  if(!currentSession){document.getElementById('nameErr').textContent='클래스 정보가 없어요. 코드를 다시 입력해 주세요.';return;}
+
+  showStep('stepLoading');
+  document.getElementById('loadingText').textContent='입장 중...';
+
+  // student.html로 이동
+  var base=location.href.replace(/[^/]*$/,'')+'student.html';
+  var url=base
+    +'?session='+encodeURIComponent(currentSession.id)
+    +(currentSession.sim_id?'&sim='+encodeURIComponent(currentSession.sim_id):'')
+    +'&name='+encodeURIComponent(name);
+
+  // Supabase 키도 URL에 포함 (학생 기기에 없을 수 있으므로)
+  if(SB_URL&&SB_KEY){
+    url+='&su='+encodeURIComponent(SB_URL)+'&sk='+encodeURIComponent(SB_KEY);
+  }
+
+  location.href=url;
+}
+
+function goBack(){
+  showStep('step1');
+  document.getElementById('codeInput').focus();
+  document.getElementById('codeInput').select();
+  document.getElementById('nameErr').textContent='';
+  loadRecentCodes();
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
