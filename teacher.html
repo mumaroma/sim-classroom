@@ -50,6 +50,19 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .badge-running{background:#e1f5ee;color:#085041;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px}
 .empty-msg{text-align:center;padding:32px;color:#aaa;font-size:13px;line-height:1.8}
 #addSimForm{display:none;border-top:1px solid #eee;margin-top:14px;padding-top:14px}
+.folder-section{margin-bottom:8px}
+.folder-header{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f5f4ff;border-radius:8px;cursor:pointer;user-select:none;border:1px solid #e0dff8}
+.folder-header:hover{background:#eeecff}
+.folder-icon{font-size:14px}
+.folder-name{font-size:14px;font-weight:700;color:#3C3489;flex:1}
+.folder-count{font-size:11px;color:#888;background:#fff;padding:2px 8px;border-radius:10px;border:1px solid #e0e0dd}
+.folder-arrow{font-size:12px;color:#888;transition:transform .2s}
+.folder-arrow.open{transform:rotate(90deg)}
+.folder-body{display:none;padding-left:12px;padding-top:6px}
+.folder-body.open{display:block}
+.folder-edit-btns{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.folder-header:hover .folder-edit-btns{opacity:1}
+.folder-rename-input{font-size:13px;border:1px solid #7F77DD;border-radius:6px;padding:3px 8px;font-family:inherit;outline:none;width:120px}
 
 /* 반 이름 모달 */
 #classModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center}
@@ -284,6 +297,15 @@ main{max-width:1100px;margin:0 auto;padding:16px}
         <button class="btn btn-primary btn-sm" id="toggleAddForm">+ 새 추가</button>
       </div>
       <div id="addSimForm">
+        <div class="field"><label>폴더</label>
+          <div style="display:flex;gap:6px">
+            <select id="simFolder" style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none">
+              <option value="미분류">미분류</option>
+            </select>
+            <input type="text" id="simFolderNew" placeholder="새 폴더 이름 직접 입력" style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:3px">기존 폴더 선택 또는 새 폴더 이름 직접 입력</div>
+        </div>
         <div class="field"><label>제목 *</label><input type="text" id="simTitle" placeholder="예: (a-b)² 곱셈공식 시뮬레이션"></div>
         <div class="field"><label>설명 (선택)</label><input type="text" id="simDesc" placeholder="예: 5조각 드래그 활동"></div>
         <div class="field"><label>시뮬레이션 코드 전체 붙여넣기 *</label><textarea id="simCode"></textarea></div>
@@ -392,15 +414,7 @@ async function hashPw(pw){
 function showLogin(){ document.getElementById('loginForm').style.display=''; document.getElementById('setupForm').style.display='none'; }
 function showSetup(){ document.getElementById('loginForm').style.display='none'; document.getElementById('setupForm').style.display=''; }
 
-// Enter 키 처리
-['loginId','loginPw'].forEach(function(id){
-  document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
-});
-['setupId','setupPw','setupPw2','setupUrl','setupKey'].forEach(function(id){
-  document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')doSetup();});
-});
-document.getElementById('loginBtn').addEventListener('click',doLogin);
-document.getElementById('setupBtn').addEventListener('click',doSetup);
+// Enter 키 처리는 window.addEventListener('load') 안에서 처리
 
 async function doLogin(){
   var id=document.getElementById('loginId').value.trim();
@@ -489,6 +503,16 @@ function applyInvite(){
 }
 
 window.addEventListener('load',function(){
+  // Enter 키 + 버튼 이벤트 (DOM 준비 후)
+  ['loginId','loginPw'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+  });
+  ['setupId','setupPw','setupPw2','setupUrl','setupKey'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')doSetup();});
+  });
+  var lb=document.getElementById('loginBtn');if(lb)lb.addEventListener('click',doLogin);
+  var sb=document.getElementById('setupBtn');if(sb)sb.addEventListener('click',doSetup);
+
   // 이미 로그인된 세션이면 바로 연결
   var loggedIn=sessionStorage.getItem('teacher_loggedin');
   if(loggedIn){
@@ -556,32 +580,127 @@ function switchTab(name){
 // ── 시뮬레이션 목록 ──
 async function loadSimList(){
   if(!sbClient)return;
-  var r=await sbClient.from('simulations').select('id,title,description,created_at').order('created_at',{ascending:false});
+  var r=await sbClient.from('simulations').select('id,title,description,created_at,folder').order('folder',{ascending:true}).order('created_at',{ascending:false});
   var sims=r.data||[];
   var list=document.getElementById('simList');
-  list.querySelectorAll('.sim-item').forEach(function(e){e.remove();});
+  list.innerHTML='';
   document.getElementById('emptySims').style.display=sims.length?'none':'';
+  if(!sims.length)return;
+
+  // 폴더별 그룹화
+  var folders={};
   sims.forEach(function(sim){
-    var d=new Date(sim.created_at);
-    var ds=d.getFullYear()+'.'+(d.getMonth()+1).toString().padStart(2,'0')+'.'+d.getDate().toString().padStart(2,'0');
-    var isRunning=(String(currentSimId)===String(sim.id));
-    var el=document.createElement('div');
-    el.className='sim-item'+(isRunning?' running':'');
-    el.innerHTML='<div class="sim-info"><div class="sim-title">'+esc(sim.title)+'</div>'
-      +(sim.description?'<div class="sim-desc">'+esc(sim.description)+'</div>':'')
-      +'<div class="sim-date">'+ds+'</div></div>'
-      +'<div class="sim-actions">'+(isRunning?'<span class="badge-running">진행 중</span>':'')
-      +'</div>';
-    var openBtn=document.createElement('button');
-    openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 클래스 열기';
-    openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
-    var delBtn=document.createElement('button');
-    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
-    delBtn.addEventListener('click',(function(id){return function(){deleteSim(id);};})(sim.id));
-    el.querySelector('.sim-actions').appendChild(openBtn);
-    el.querySelector('.sim-actions').appendChild(delBtn);
-    list.appendChild(el);
+    var f=sim.folder||'미분류';
+    if(!folders[f])folders[f]=[];
+    folders[f].push(sim);
   });
+
+  // 폴더 선택 드롭다운 업데이트
+  var sel=document.getElementById('simFolder');
+  if(sel){
+    var cur=sel.value;
+    sel.innerHTML='<option value="미분류">미분류</option>';
+    Object.keys(folders).forEach(function(f){
+      if(f==='미분류')return;
+      var opt=document.createElement('option');
+      opt.value=f;opt.textContent=f;
+      sel.appendChild(opt);
+    });
+    sel.value=cur||'미분류';
+  }
+
+  // 폴더 섹션 렌더링
+  var folderOrder=Object.keys(folders).sort(function(a,b){
+    if(a==='미분류')return 1;if(b==='미분류')return -1;return a.localeCompare(b,'ko');
+  });
+
+  folderOrder.forEach(function(fname){
+    var fsims=folders[fname];
+    var sec=document.createElement('div');
+    sec.className='folder-section';
+
+    // 폴더 헤더
+    var hdr=document.createElement('div');
+    hdr.className='folder-header';
+
+    var iconEl=document.createElement('span');iconEl.className='folder-icon';iconEl.textContent='📁';
+    var nameEl=document.createElement('span');nameEl.className='folder-name';nameEl.textContent=fname;
+    var countEl=document.createElement('span');countEl.className='folder-count';countEl.textContent=fsims.length+'개';
+    var editBtns=document.createElement('div');editBtns.className='folder-edit-btns';
+    var renBtn=document.createElement('button');
+    renBtn.className='btn btn-outline btn-sm';renBtn.title='폴더 이름 변경';renBtn.textContent='✏️';
+    renBtn.addEventListener('click',(function(n){return function(e){e.stopPropagation();renameFolder(n);};})(fname));
+    editBtns.appendChild(renBtn);
+    var arrowEl=document.createElement('span');arrowEl.className='folder-arrow open';arrowEl.textContent='▶';
+
+    hdr.appendChild(iconEl);hdr.appendChild(nameEl);hdr.appendChild(countEl);
+    hdr.appendChild(editBtns);hdr.appendChild(arrowEl);
+
+    var body=document.createElement('div');
+    body.className='folder-body open';
+
+    hdr.addEventListener('click',function(){
+      var arrow=hdr.querySelector('.folder-arrow');
+      body.classList.toggle('open');
+      arrow.classList.toggle('open');
+    });
+    sec.appendChild(hdr);sec.appendChild(body);
+    list.appendChild(sec);
+
+    // 시뮬레이션 아이템
+    fsims.forEach(function(sim){
+      var d=new Date(sim.created_at);
+      var ds=(d.getMonth()+1)+'/'+(d.getDate());
+      var isRunning=(String(currentSimId)===String(sim.id));
+      var el=document.createElement('div');
+      el.className='sim-item'+(isRunning?' running':'');
+      el.innerHTML='<div class="sim-info"><div class="sim-title">'+esc(sim.title)+'</div>'
+        +(sim.description?'<div class="sim-desc">'+esc(sim.description)+'</div>':'')
+        +'<div class="sim-date">'+ds+(isRunning?' · <span style="color:#1D9E75">진행 중</span>':'')+'</div></div>'
+        +'<div class="sim-actions">'+(isRunning?'<span class="badge-running">진행 중</span>':'')+'</div>';
+      var openBtn=document.createElement('button');
+      openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 클래스 열기';
+      openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
+      var moveBtn=document.createElement('button');
+      moveBtn.className='btn btn-outline btn-sm';moveBtn.textContent='📁 이동';
+      moveBtn.addEventListener('click',(function(id,title,cf){return function(){moveSim(id,title,cf);};})(sim.id,sim.title,fname));
+      var delBtn=document.createElement('button');
+      delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
+      delBtn.addEventListener('click',(function(id){return function(){deleteSim(id);};})(sim.id));
+      el.querySelector('.sim-actions').appendChild(openBtn);
+      el.querySelector('.sim-actions').appendChild(moveBtn);
+      el.querySelector('.sim-actions').appendChild(delBtn);
+      body.appendChild(el);
+    });
+  });
+}
+
+// 폴더 이름 변경
+async function renameFolder(oldName){
+  var newName=prompt('새 폴더 이름을 입력하세요:',oldName);
+  if(!newName||newName===oldName)return;
+  newName=newName.trim();if(!newName)return;
+  await sbClient.from('simulations').update({folder:newName}).eq('folder',oldName);
+  loadSimList();
+}
+
+// 시뮬레이션 폴더 이동
+async function moveSim(simId,simTitle,currentFolder){
+  var r=await sbClient.from('simulations').select('folder').order('folder',{ascending:true});
+  var folders=[...new Set((r.data||[]).map(function(s){return s.folder||'미분류';}))].filter(function(f){return f!==currentFolder;});
+  folders.push('+ 새 폴더 만들기');
+  var choice=prompt('이동할 폴더:\n'+folders.map(function(f,i){return (i+1)+'. '+f;}).join('\n')+'\n\n번호 또는 폴더 이름 직접 입력:');
+  if(!choice)return;
+  var target=choice.trim();
+  var num=parseInt(target);
+  if(num>0&&num<=folders.length) target=folders[num-1];
+  if(target==='+ 새 폴더 만들기'){
+    target=prompt('새 폴더 이름:');
+    if(!target||!target.trim())return;
+    target=target.trim();
+  }
+  await sbClient.from('simulations').update({folder:target}).eq('id',simId);
+  loadSimList();
 }
 
 document.getElementById('toggleAddForm').addEventListener('click',function(){
@@ -589,14 +708,18 @@ document.getElementById('toggleAddForm').addEventListener('click',function(){
 });
 document.getElementById('cancelAdd').addEventListener('click',function(){
   document.getElementById('addSimForm').style.display='none';
-  ['simTitle','simDesc','simCode'].forEach(function(id){document.getElementById(id).value='';});
+  ['simTitle','simDesc','simCode','simFolderNew'].forEach(function(id){document.getElementById(id).value='';});
+  var sel=document.getElementById('simFolder');if(sel)sel.value='미분류';
 });
 document.getElementById('saveSim').addEventListener('click',async function(){
   var title=document.getElementById('simTitle').value.trim();
   var desc=document.getElementById('simDesc').value.trim();
   var code=document.getElementById('simCode').value.trim();
   if(!title||!code){alert('제목과 코드를 모두 입력해주세요.');return;}
-  var r=await sbClient.from('simulations').insert({title:title,description:desc,code:code});
+  var folderSel=document.getElementById('simFolder').value;
+  var folderNew=(document.getElementById('simFolderNew').value||'').trim();
+  var folder=folderNew||folderSel||'미분류';
+  var r=await sbClient.from('simulations').insert({title:title,description:desc,code:code,folder:folder});
   if(r.error){alert('저장 실패: '+r.error.message);return;}
   var m=document.getElementById('simSaveMsg');m.style.display='inline';
   setTimeout(function(){m.style.display='none';},1500);
