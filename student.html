@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시뮬레이션</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;min-height:100vh}
+#topbar{background:#fff;border-bottom:1px solid #e0e0dd;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#666;position:sticky;top:0;z-index:50}
+.tb-l{display:flex;align-items:center;gap:10px}
+.tb-session{background:#f0f0fe;color:#3C3489;padding:3px 10px;border-radius:4px;font-weight:600}
+.tb-name{font-weight:600;color:#1a1a1a}
+.conn{display:flex;align-items:center;gap:5px}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#ddd}
+.conn-dot.ok{background:#1D9E75;animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* 이름 입력 오버레이 */
+#namePrompt{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999}
+.prompt-box{background:#fff;border-radius:16px;padding:32px;max-width:320px;width:90%;text-align:center}
+.prompt-box h2{font-size:18px;font-weight:700;margin-bottom:6px}
+.prompt-box p{font-size:13px;color:#888;margin-bottom:20px;line-height:1.5}
+.prompt-box input{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 14px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px}
+.prompt-box input:focus{border-color:#7F77DD}
+.prompt-box button{width:100%;padding:11px;border-radius:8px;border:none;background:#3C3489;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+.prompt-box button:hover{background:#534AB7}
+
+/* 로딩 */
+#loadingMsg{text-align:center;padding:80px 20px;color:#aaa;font-size:14px;display:none}
+#loadingMsg .spin{display:inline-block;width:24px;height:24px;border:2px solid #ddd;border-top-color:#7F77DD;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 시뮬레이션 컨테이너 */
+#simContainer{max-width:680px;margin:16px auto;padding:0 16px 32px}
+
+/* 시뮬레이션 내부에서 사용하는 공통 스타일 */
+#simContainer .card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+#simContainer h2{font-size:16px;font-weight:700;margin-bottom:14px;text-align:center}
+#simContainer .sr{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+#simContainer .sl{font-size:14px;font-weight:500;min-width:65px;color:#666}
+#simContainer .sv{font-size:15px;font-weight:600;min-width:22px;text-align:right}
+#simContainer input[type=range]{flex:1;height:4px;cursor:pointer}
+#simContainer #fb{border-radius:10px;padding:12px 16px;margin:12px 0;text-align:center;font-size:15px;font-weight:600;line-height:1.8}
+#simContainer #ar{position:relative;width:100%;height:440px;background:#fafaf8;border:1px solid #e8e8e5;border-radius:12px;overflow:hidden;touch-action:none}
+#simContainer .pc{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;user-select:none;touch-action:none;border-radius:0;transition:box-shadow .12s}
+#simContainer .pc.dg{cursor:grabbing;z-index:50;box-shadow:0 8px 28px rgba(0,0,0,.2)}
+#simContainer .pcl{font-size:12px;font-weight:600;pointer-events:none}
+#simContainer .pcv{font-size:11px;pointer-events:none;opacity:.7;margin-top:2px}
+#simContainer .rot-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;z-index:10;transition:background .12s,transform .15s;touch-action:none}
+#simContainer .rot-btn:hover{background:rgba(255,255,255,.85);transform:rotate(90deg)}
+#simContainer .btns{display:flex;gap:8px;margin-top:12px;justify-content:center;flex-wrap:wrap}
+#simContainer .btn{font-size:13px;padding:7px 18px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#555;font-family:inherit}
+#simContainer .btn:hover{background:#f5f5f5}
+#simContainer canvas#opc{position:absolute;inset:0;pointer-events:none}
+#simContainer .legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px;font-size:12px;color:#888}
+#simContainer .li{display:flex;align-items:center;gap:4px}
+#simContainer .ld{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+#simContainer .hint{text-align:center;font-size:12px;color:#aaa;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div id="namePrompt">
+  <div class="prompt-box">
+    <h2>수학 시뮬레이션</h2>
+    <p>이름을 입력하고 시작하세요</p>
+    <input type="text" id="nameInput" placeholder="이름 입력" maxlength="20">
+    <button id="nameSubmit">시작하기</button>
+  </div>
+</div>
+
+<div id="topbar">
+  <div class="tb-l">
+    <span class="tb-session" id="tbSession">—</span>
+    <span class="tb-name" id="tbName"></span>
+  </div>
+  <div class="conn">
+    <span class="conn-dot" id="connDot"></span>
+    <span id="connText">연결 중...</span>
+  </div>
+</div>
+
+<div id="loadingMsg">
+  <div class="spin"></div>
+  <div>시뮬레이션 불러오는 중...</div>
+</div>
+
+<div id="simContainer"></div>
+
+<script>
+var params=new URLSearchParams(location.search);
+var sessionId=params.get('session')||'';
+var simId=params.get('sim')||'';
+var studentName='';
+var sbClient=null;
+var reportTimer=null;
+var lastState='';
+var isPreview=params.get('preview')==='1';
+// 상태 복원 (교사 미리보기용)
+var _sp=params.get('state');
+if(_sp){try{window.initialSimState=JSON.parse(decodeURIComponent(atob(_sp)));}catch(e){}}
+
+// Supabase 초기화 (teacher.html에서 저장한 키 사용)
+// 1순위: URL 파라미터 (학생 링크에 포함된 키)
+// 2순위: localStorage (같은 기기에서 teacher.html 열었을 때)
+var SB_URL=params.get('su')||localStorage.getItem('sb_url')||'';
+var SB_KEY=params.get('sk')||localStorage.getItem('sb_key')||'';
+
+if(SB_URL&&SB_KEY){
+  sbClient=supabase.createClient(SB_URL,SB_KEY);
+  // 이 기기에도 저장 (다음 접속 편의)
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+}
+
+// 이름 입력
+document.getElementById('nameInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitName();});
+document.getElementById('nameSubmit').addEventListener('click',submitName);
+
+function submitName(){
+  var n=document.getElementById('nameInput').value.trim();
+  if(!n){document.getElementById('nameInput').focus();return;}
+  studentName=n;
+  // 이 세션에서 이름 기억 (재접속 시 자동 입력)
+  if(sessionId&&!isPreview) localStorage.setItem('sname_'+sessionId,studentName);
+  document.getElementById('namePrompt').style.display='none';
+  document.getElementById('tbSession').textContent='세션 '+sessionId;
+  document.getElementById('tbName').textContent=studentName;
+  if(sbClient){
+    document.getElementById('connDot').classList.add('ok');
+    document.getElementById('connText').textContent=isPreview?'미리보기':'연결됨';
+  } else {
+    document.getElementById('connText').textContent='오프라인';
+  }
+  if(isPreview) window.reportSimState=function(){};
+  loadSimulation();
+}
+
+// 시뮬레이션 코드를 Supabase에서 불러와 실행
+async function loadSimulation(){
+  if(!simId){
+    document.getElementById('simContainer').innerHTML='<p style="text-align:center;padding:40px;color:#aaa">시뮬레이션 ID가 없습니다. 선생님께 링크를 다시 받으세요.</p>';
+    return;
+  }
+  if(!sbClient){
+    document.getElementById('simContainer').innerHTML='<p style="text-align:center;padding:40px;color:#aaa">Supabase 연결 정보가 없습니다.<br>선생님 대시보드(teacher.html)를 먼저 열어 연결 설정을 완료해주세요.</p>';
+    return;
+  }
+  document.getElementById('loadingMsg').style.display='block';
+  var r=await sbClient.from('simulations').select('code,title').eq('id',simId).single();
+  document.getElementById('loadingMsg').style.display='none';
+  if(r.error||!r.data){
+    document.getElementById('simContainer').innerHTML='<p style="text-align:center;padding:40px;color:#aaa">시뮬레이션을 불러오지 못했습니다.</p>';
+    return;
+  }
+  document.title=r.data.title+' — 시뮬레이션';
+  injectSim(r.data.code);
+}
+
+// HTML+JS 코드를 컨테이너에 주입 + 스크립트 실행 + 자동 추적/복원 시작
+function injectSim(html){
+  var container=document.getElementById('simContainer');
+  container.innerHTML=html;
+  var scripts=container.querySelectorAll('script');
+  scripts.forEach(function(old){
+    var s=document.createElement('script');
+    s.textContent=old.textContent;
+    document.body.appendChild(s);
+    old.remove();
+  });
+  // 코드 실행 완료 후 추적 시작 + 상태 복원
+  setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
+}
+
+// ── 상태 복원 (교사가 학생 카드 클릭 시) ──
+function restoreSimState(){
+  var _s=window.initialSimState;
+  if(!_s) return;
+  // Step1: 슬라이더/셀렉터 값 복원
+  if(_s._inputs){
+    Object.keys(_s._inputs).forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el)return;
+      el.value=_s._inputs[id];
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+      el.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+  }
+  // Step2: .pc 조각 위치 복원 (슬라이더 이벤트로 위치 리셋된 후에 덮어쓰기)
+  if(_s.pos&&_s.pos.length){
+    setTimeout(function(){
+      var c=document.getElementById('simContainer');
+      if(!c)return;
+      var arEl=c.querySelector('#ar');
+      if(!arEl)return;
+      var aw=arEl.offsetWidth,ah=arEl.offsetHeight;
+      if(!aw||!ah)return;
+      var pieces=arEl.querySelectorAll('.pc');
+      _s.pos.forEach(function(p,i){
+        if(!pieces[i])return;
+        pieces[i].style.left  =(p.x*aw)+'px';
+        pieces[i].style.top   =(p.y*ah)+'px';
+        if(p.w) pieces[i].style.width =(p.w*aw)+'px';
+        if(p.h) pieces[i].style.height=(p.h*ah)+'px';
+      });
+    },350);
+  }
+}
+
+// ── 자동 추적 시스템 ──
+var _autoInterval=null,_autoTimer=null,_customState=null;
+
+function startAutoTrack(){
+  var c=document.getElementById('simContainer');
+  if(!c)return;
+  // 슬라이더/버튼 감지
+  c.addEventListener('input',function(e){
+    if(e.target.type==='range'||e.target.tagName==='SELECT'||e.target.type==='number')
+      scheduleAutoReport();
+  });
+  c.addEventListener('click',function(e){
+    if(e.target.tagName==='BUTTON') scheduleAutoReport();
+  });
+  // 드래그 조각 감지 (mouseup/touchend)
+  c.addEventListener('mouseup',  scheduleAutoReport);
+  c.addEventListener('touchend', scheduleAutoReport);
+  // 주기적 캡처 (애니메이션 대응)
+  if(_autoInterval)clearInterval(_autoInterval);
+  _autoInterval=setInterval(function(){
+    if(!document.getElementById('simContainer')){clearInterval(_autoInterval);return;}
+    collectAndReport();
+  },1500);
+  collectAndReport();
+}
+
+function scheduleAutoReport(){
+  clearTimeout(_autoTimer);
+  _autoTimer=setTimeout(collectAndReport,350);
+}
+
+function collectAndReport(){
+  var c=document.getElementById('simContainer');
+  if(!c)return;
+  // ① 슬라이더/셀렉터 값 수집
+  var inputs={};
+  c.querySelectorAll('input[type=range],input[type=number],select').forEach(function(el,i){
+    var k=el.id||el.name||('f'+i);
+    inputs[k]=isNaN(parseFloat(el.value))?el.value:parseFloat(el.value);
+  });
+  // ② .pc 드래그 조각 위치 수집 (퍼즐형 시뮬레이션)
+  var posData=captureGamePieces(c);
+  // ③ SVG 썸네일 (SVG 기반 시뮬레이션)
+  var thumb=captureSVGThumb(c);
+  // 상태 합성
+  var state=Object.assign({},_customState||{},{_inputs:inputs});
+  if(posData) state.pos=posData;
+  if(thumb)   state.thumbnail=thumb;
+  if(!state.mode) state.mode='활동중';
+  // a, b 슬롯 (커스텀 없을 때 sA/sB 자동 매핑)
+  if(_customState===null){
+    var sA=document.getElementById('sA'),sB=document.getElementById('sB');
+    if(sA) state.a=parseInt(sA.value);
+    if(sB) state.b=parseInt(sB.value);
+    if(state.a===undefined){
+      var keys=Object.keys(inputs);
+      if(keys[0]!==undefined) state.a=inputs[keys[0]];
+      if(keys[1]!==undefined) state.b=inputs[keys[1]];
+    }
+  }
+  doReport(state);
+}
+
+// .pc 드래그 조각 위치 캡처
+function captureGamePieces(container){
+  var arEl=container.querySelector('#ar');
+  if(!arEl)return null;
+  var pieces=arEl.querySelectorAll('.pc');
+  if(!pieces.length)return null;
+  var aw=arEl.offsetWidth,ah=arEl.offsetHeight;
+  if(!aw||!ah)return null;
+  return Array.prototype.map.call(pieces,function(el){
+    return{
+      x:(parseFloat(el.style.left)||0)/aw,
+      y:(parseFloat(el.style.top)||0)/ah,
+      w:(parseFloat(el.style.width)||0)/aw,
+      h:(parseFloat(el.style.height)||0)/ah
+    };
+  });
+}
+
+// SVG 썸네일 캡처 (CSS 변수 없는 SVG만)
+function captureSVGThumb(container){
+  var svgs=container.querySelectorAll('svg');
+  var svg=null;
+  svgs.forEach(function(s){if(s.id!=='opc'&&s.getBBox)svg=s;});
+  if(!svg)return null;
+  try{
+    var s=new XMLSerializer().serializeToString(svg);
+    if(s.indexOf('var(--')>=0||s.length>60000)return null;
+    return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+  }catch(e){return null;}
+}
+
+// ── 상태 보고 함수 ──
+// 시뮬레이션이 직접 호출: window.reportSimState(state)
+// 자동 추적과 병합됨
+window.reportSimState=function(state){
+  _customState=state; // 커스텀 상태 저장 (자동추적이 병합에 사용)
+  clearTimeout(reportTimer);
+  reportTimer=setTimeout(function(){doReport(state);},280);
+};
+
+async function doReport(state){
+  if(!sbClient||!sessionId||!studentName)return;
+  var s=JSON.stringify(state);
+  if(s===lastState)return;
+  lastState=s;
+  try{
+    await sbClient.from('sim_states').upsert({
+      session_id:sessionId,
+      student_name:studentName,
+      state:state,
+      updated_at:new Date().toISOString()
+    },{onConflict:'session_id,student_name'});
+  }catch(e){console.log('report err',e);}
+}
+</script>
+</body>
+</html>
