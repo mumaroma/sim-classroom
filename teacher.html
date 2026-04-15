@@ -646,11 +646,18 @@ document.getElementById('saveConfig').addEventListener('click',function(){
 });
 
 function initSupa(url,key){
-  sbClient=supabase.createClient(url,key);
-  // 설정 카드 숨기기 (로그인 후 다시 나타나지 않도록)
+  if(!url||!key){
+    console.error('initSupa: URL 또는 키 없음');
+    return;
+  }
+  try{
+    sbClient=supabase.createClient(url,key);
+  }catch(e){
+    alert('Supabase 연결 실패: '+e.message);return;
+  }
   document.getElementById('setupCard').style.display='none';
   document.getElementById('mainTabs').style.display='flex';
-  loadSimList();
+  setTimeout(loadSimList,100); // 약간의 지연으로 안정적 로드
   // 기존에 teacher_id 없이 저장된 내 클래스 기록 자동 마이그레이션
   migrateOldSessions();
   loadHistory();
@@ -669,18 +676,30 @@ function switchTab(name){
 
 // ── 시뮬레이션 목록 ──
 async function loadSimList(){
-  if(!sbClient)return;
+  if(!sbClient){
+    var list=document.getElementById('simList');
+    if(list) list.innerHTML='<div class="empty-msg" style="color:#e24b4a">Supabase 연결 안 됨</div>';
+    return;
+  }
   var list=document.getElementById('simList');
-  list.innerHTML='<div class="empty-msg" style="color:#aaa">불러오는 중...</div>';
+  if(list) list.innerHTML='<div class="empty-msg" style="color:#aaa">불러오는 중...</div>';
 
   var sims=[];
+  // 5초 타임아웃
+  var timeoutId=setTimeout(function(){
+    if(list&&list.innerHTML.indexOf('불러오는 중')>=0){
+      list.innerHTML='<div class="empty-msg" style="color:#e24b4a">⚠️ 연결 시간 초과<br><span style="font-size:11px;color:#aaa">Supabase URL/키를 확인해주세요</span><br><br><button class="btn btn-outline btn-sm" onclick="loadSimList()">다시 시도</button></div>';
+    }
+  },5000);
   try{
     var r=await sbClient.from('simulations')
       .select('id,title,description,created_at,folder')
       .order('created_at',{ascending:false});
+    clearTimeout(timeoutId);
     if(r.error)throw r.error;
     sims=r.data||[];
   }catch(e){
+    clearTimeout(timeoutId);
     // folder 컬럼 없으면 folder 없이 재시도
     try{
       var r2=await sbClient.from('simulations')
@@ -689,7 +708,7 @@ async function loadSimList(){
       if(r2.error)throw r2.error;
       sims=(r2.data||[]).map(function(s){return Object.assign({folder:'미분류'},s);});
     }catch(e2){
-      list.innerHTML='<div class="empty-msg" style="color:#e24b4a">불러오기 실패: '+e2.message+'</div>';
+      if(list){list.innerHTML='';var errDiv=document.createElement('div');errDiv.className='empty-msg';errDiv.style.color='#e24b4a';errDiv.innerHTML='❌ 불러오기 실패<br><span style="font-size:11px;color:#aaa">'+esc(e2.message)+'</span>';var retryBtn=document.createElement('button');retryBtn.className='btn btn-outline btn-sm';retryBtn.textContent='다시 시도';retryBtn.style.marginTop='8px';retryBtn.onclick=loadSimList;errDiv.appendChild(document.createElement('br'));errDiv.appendChild(retryBtn);list.appendChild(errDiv);}
       return;
     }
   }
