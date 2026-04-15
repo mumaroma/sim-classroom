@@ -197,10 +197,17 @@ function showStep(id){
 
 // URL에서 코드 자동 입력
 var params=new URLSearchParams(location.search);
+// URL에 su/sk 있으면 localStorage에 저장 (선생님 공유 링크)
+var _urlSu=params.get('su'),_urlSk=params.get('sk');
+if(_urlSu&&_urlSk){
+  SB_URL=_urlSu;SB_KEY=_urlSk;
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+  sbClient=supabase.createClient(SB_URL,SB_KEY);
+}
 var urlCode=params.get('code')||params.get('session')||'';
 if(urlCode){
   document.getElementById('codeInput').value=urlCode.toUpperCase();
-  // 잠깐 후 자동 확인
   setTimeout(checkCode,300);
 } else {
   loadRecentCodes();

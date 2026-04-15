@@ -338,12 +338,20 @@ main{max-width:1100px;margin:0 auto;padding:16px}
           <div class="session-code" id="sessionCode">——</div>
         </div>
       </div>
+      <div style="font-size:11px;color:#888;margin-bottom:4px">📎 직접 링크 (이름만 입력하면 바로 시작)</div>
       <div class="link-box">
         <input type="text" id="studentLink" readonly>
         <button class="btn btn-green btn-sm" id="copyLink">복사</button>
         <a id="openLink" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none">↗ 열기</a>
         <span class="copy-ok" id="copyOk">✓</span>
       </div>
+      <div style="font-size:11px;color:#888;margin:10px 0 4px">🏠 입장 페이지 링크 (코드 입력 방식)</div>
+      <div class="link-box">
+        <input type="text" id="entryLink" readonly>
+        <button class="btn btn-outline btn-sm" id="copyEntryLink">복사</button>
+        <span class="copy-ok" id="copyEntryOk">✓</span>
+      </div>
+      <div style="font-size:11px;color:#aaa;margin-top:4px">💡 두 링크 모두 Supabase 키가 포함되어 있어요</div>
     </div>
     <div class="card" id="noSessionMsg" style="text-align:center;padding:32px;color:#aaa;font-size:13px">
       진행 중인 클래스이 없어요.<br>
@@ -812,6 +820,12 @@ function startSession(code,isNew){
   if(_su&&_sk) link+='&su='+encodeURIComponent(_su)+'&sk='+encodeURIComponent(_sk);
   document.getElementById('studentLink').value=link;
   document.getElementById('openLink').href=link;
+  // 입장 페이지 링크 (index.html + su/sk + code)
+  var entryBase=window.location.href.replace('teacher.html','index.html');
+  var entryLink=entryBase+'?code='+code;
+  if(_su&&_sk) entryLink+='&su='+encodeURIComponent(_su)+'&sk='+encodeURIComponent(_sk);
+  var entryEl=document.getElementById('entryLink');
+  if(entryEl) entryEl.value=entryLink;
   document.getElementById('sessionCard').style.display='block';
   document.getElementById('noSessionMsg').style.display='none';
   document.getElementById('studentsCard').style.display='block';
@@ -858,6 +872,14 @@ document.getElementById('endSession').addEventListener('click',function(){
 document.getElementById('copyLink').addEventListener('click',function(){
   navigator.clipboard.writeText(document.getElementById('studentLink').value).then(function(){
     var ok=document.getElementById('copyOk');ok.style.display='inline';
+    setTimeout(function(){ok.style.display='none';},1500);
+  });
+});
+document.getElementById('copyEntryLink').addEventListener('click',function(){
+  var el=document.getElementById('entryLink');
+  if(!el||!el.value)return;
+  navigator.clipboard.writeText(el.value).then(function(){
+    var ok=document.getElementById('copyEntryOk');ok.style.display='inline';
     setTimeout(function(){ok.style.display='none';},1500);
   });
 });
