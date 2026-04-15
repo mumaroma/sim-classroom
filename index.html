@@ -105,7 +105,7 @@ body{
       <div class="step-label">Step 1 of 2</div>
       <div class="step-title">클래스 코드 입력</div>
       <div class="step-desc">선생님께서 알려주신 6자리 코드를 입력하세요</div>
-      <input class="code-input" id="codeInput" maxlength="6" placeholder="XXXXXX" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input class="code-input" id="codeInput" maxlength="6" placeholder="XXXXXX" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="latin" type="text">
       <div class="err" id="codeErr"></div>
       <button class="btn btn-purple" id="codeBtn" onclick="checkCode()">다음 →</button>
 
@@ -206,9 +206,23 @@ if(urlCode){
   loadRecentCodes();
 }
 
-// 코드 입력창 자동 대문자
-document.getElementById('codeInput').addEventListener('input',function(){
+// 코드 입력창 자동 대문자 (IME 조합 중엔 필터 안 함)
+var _composing=false;
+var _codeEl=document.getElementById('codeInput');
+_codeEl.addEventListener('compositionstart',function(){_composing=true;});
+_codeEl.addEventListener('compositionend',function(){
+  _composing=false;
   this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  document.getElementById('codeErr').textContent='';
+});
+_codeEl.addEventListener('input',function(){
+  if(_composing)return;
+  var pos=this.selectionStart;
+  var filtered=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(this.value!==filtered){
+    this.value=filtered;
+    try{this.setSelectionRange(pos,pos);}catch(e){}
+  }
   document.getElementById('codeErr').textContent='';
 });
 document.getElementById('codeInput').addEventListener('keydown',function(e){
