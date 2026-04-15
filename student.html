@@ -203,77 +203,103 @@ async function loadSimulation(){
   injectSim(r.data.code);
 }
 
-// HTML+JS 코드를 컨테이너에 주입 + 스크립트 실행 + 자동 추적/복원 시작
+// ── iframe 방식으로 시뮬레이션 실행 ──
+// 순수 HTML을 Blob URL로 만들어 iframe에 로드 → 외부 스크립트/Canvas 완전 지원
 function injectSim(html){
   var container=document.getElementById('simContainer');
+  container.innerHTML='';
 
-  // 전체 HTML 파일(<!DOCTYPE>, <html> 포함) 자동 처리
+  // 전체 HTML이 아닌 경우 기본 구조로 감싸기
   var isFullDoc=/<!DOCTYPE|<html[\s>]/i.test(html);
-  var toInject=html;
-  if(isFullDoc){
-    // <style> 추출 (body/html/* 셀렉터 제거 후 주입)
-    var styleBlocks='';
-    html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi,function(_,css){
-      // body, html, * 전체 선택자 규칙은 충돌하므로 제거
-      var filtered=css.replace(/(?:^|\})\s*(?:body|html|\*)[^{]*\{[^}]*\}/g,'');
-      if(filtered.trim()) styleBlocks+='<style>'+filtered+'</style>';
-    });
-    // <body> 내용 추출
-    var bodyMatch=html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    var bodyContent=bodyMatch?bodyMatch[1]:html;
-    toInject=styleBlocks+bodyContent;
-  }
+  var fullHtml=isFullDoc?html:'<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'+html+'</body></html>';
 
-  container.innerHTML=toInject;
+  // reportSimState 브릿지 코드 주입 (</body> 직전)
+  var initialState=window.initialSimState?JSON.stringify(window.initialSimState):'null';
+  var bridge='<script>(function(){'
+    +'window.initialSimState='+initialState+';'
+    +'window.reportSimState=function(state){'
+    +'  try{parent.postMessage({type:"simState",state:state},"*");}catch(e){}'
+    +'};'
+    // 자동 추적: 1초마다 Canvas 스냅샷 전송
+    +'setInterval(function(){'
+    +'  try{'
+    +'    var canvases=document.querySelectorAll("canvas");'
+    +'    var cv=null;'
+    +'    canvases.forEach(function(c){if(c.id!=="opc"&&c.width>50&&c.height>50)cv=c;});'
+    +'    if(cv){'
+    +'      var thumb=document.createElement("canvas");'
+    +'      thumb.width=200;thumb.height=120;'
+    +'      thumb.getContext("2d").drawImage(cv,0,0,200,120);'
+    +'      parent.postMessage({type:"simThumb",data:thumb.toDataURL("image/jpeg",0.7)},"*");'
+    +'    }'
+    +'  }catch(e){}'
+    +'},1200);'
+    // 슬라이더 자동 감지
+    +'document.addEventListener("DOMContentLoaded",function(){'
+    +'  document.addEventListener("input",function(e){'
+    +'    if(e.target.type==="range"||e.target.tagName==="SELECT"){'
+    +'      setTimeout(function(){'
+    +'        var inputs={};'
+    +'        document.querySelectorAll("input[type=range],select,input[type=number]").forEach(function(el,i){'
+    +'          var k=el.id||el.name||("f"+i);'
+    +'          inputs[k]=isNaN(parseFloat(el.value))?el.value:parseFloat(el.value);'
+    +'        });'
+    +'        parent.postMessage({type:"simInputs",inputs:inputs},"*");'
+    +'      },300);'
+    +'    }'
+    +'  });'
+    +'});'
+    +'})();<\/script>';
 
-  // 외부 스크립트(src=)와 인라인 스크립트 분리
-  var scripts=Array.from(container.querySelectorAll('script'));
-  var extScripts=scripts.filter(function(s){return s.src||s.getAttribute('src');});
-  var inlineScripts=scripts.filter(function(s){return !s.src&&!s.getAttribute('src')&&s.textContent.trim();});
+  var injected=fullHtml.replace(/<\/body>/i, bridge+'</body>');
 
-  scripts.forEach(function(s){s.remove();});
+  // Blob URL 생성 → iframe 로드
+  var blob=new Blob([injected],{type:'text/html'});
+  var url=URL.createObjectURL(blob);
 
-  if(extScripts.length){
-    // 외부 스크립트 순서대로 로드 후 인라인 실행
-    var loaded=0;
-    extScripts.forEach(function(old){
-      var s=document.createElement('script');
-      s.src=old.src||old.getAttribute('src');
-      s.onload=function(){
-        loaded++;
-        if(loaded===extScripts.length){
-          // 모든 외부 스크립트 로드 완료 → 인라인 실행
-          inlineScripts.forEach(function(old2){
-            var s2=document.createElement('script');
-            s2.textContent=old2.textContent;
-            document.body.appendChild(s2);
-          });
-          setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
-        }
-      };
-      s.onerror=function(){
-        loaded++;
-        if(loaded===extScripts.length){
-          inlineScripts.forEach(function(old2){
-            var s2=document.createElement('script');
-            s2.textContent=old2.textContent;
-            document.body.appendChild(s2);
-          });
-          setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
-        }
-      };
-      document.head.appendChild(s);
-    });
-  } else {
-    // 인라인 스크립트만 있는 경우
-    inlineScripts.forEach(function(old){
-      var s=document.createElement('script');
-      s.textContent=old.textContent;
-      document.body.appendChild(s);
-    });
-    setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
-  }
+  var iframe=document.createElement('iframe');
+  iframe.id='simFrame';
+  iframe.src=url;
+  iframe.style.cssText='width:100%;min-height:500px;border:none;display:block;background:#fff';
+  iframe.allow='';
+  iframe.setAttribute('scrolling','yes');
+
+  // iframe 높이 자동 조절
+  iframe.onload=function(){
+    URL.revokeObjectURL(url); // 메모리 해제
+    setTimeout(function(){
+      try{
+        var h=iframe.contentDocument.body.scrollHeight;
+        if(h>200) iframe.style.height=h+'px';
+      }catch(e){}
+    },500);
+    // 상태 복원 (initialSimState가 있으면 iframe 안에서 처리)
+    setTimeout(function(){ startAutoTrack(); },800);
+  };
+
+  container.appendChild(iframe);
 }
+
+// ── postMessage 수신 (iframe → parent) ──
+var _lastInputs={}, _lastThumb=null;
+window.addEventListener('message',function(e){
+  if(!e.data||!e.data.type)return;
+  if(e.data.type==='simState'){
+    // reportSimState() 직접 호출한 상태
+    _customState=e.data.state;
+    if(_lastThumb) _customState.thumbnail=_lastThumb;
+    doReport(_customState);
+  } else if(e.data.type==='simThumb'){
+    // Canvas 스냅샷
+    _lastThumb=e.data.data;
+    if(_customState){_customState.thumbnail=_lastThumb;doReport(_customState);}
+    else doReport({thumbnail:_lastThumb,mode:'활동중',_inputs:_lastInputs});
+  } else if(e.data.type==='simInputs'){
+    // 슬라이더 값 자동 수집
+    _lastInputs=e.data.inputs;
+    doReport(Object.assign({},_customState||{},{_inputs:_lastInputs,thumbnail:_lastThumb||undefined}));
+  }
+});
 
 // ── 상태 복원 (교사가 학생 카드 클릭 시) ──
 function restoreSimState(){
@@ -314,9 +340,12 @@ function restoreSimState(){
 var _autoInterval=null,_autoTimer=null,_customState=null;
 
 function startAutoTrack(){
+  // iframe 방식에서는 postMessage로 처리되므로 별도 추적 불필요
+  // 단, iframe이 아닌 경우(레거시) 폴백
+  var frame=document.getElementById('simFrame');
+  if(frame)return; // iframe 있으면 postMessage가 처리
   var c=document.getElementById('simContainer');
   if(!c)return;
-  // 슬라이더/버튼 감지
   c.addEventListener('input',function(e){
     if(e.target.type==='range'||e.target.tagName==='SELECT'||e.target.type==='number')
       scheduleAutoReport();
@@ -324,19 +353,16 @@ function startAutoTrack(){
   c.addEventListener('click',function(e){
     if(e.target.tagName==='BUTTON') scheduleAutoReport();
   });
-  // 드래그 조각 감지 (mouseup/touchend)
-  c.addEventListener('mouseup',  scheduleAutoReport);
-  c.addEventListener('touchend', scheduleAutoReport);
-  // 주기적 캡처 (애니메이션 대응)
+  c.addEventListener('mouseup',scheduleAutoReport);
+  c.addEventListener('touchend',scheduleAutoReport);
   if(_autoInterval)clearInterval(_autoInterval);
   _autoInterval=setInterval(function(){
     if(!document.getElementById('simContainer')){clearInterval(_autoInterval);return;}
     collectAndReport();
   },1200);
-  // 초기 캡처: 레이아웃 완료 후 단계적으로 시도
-  setTimeout(collectAndReport, 300);
-  setTimeout(collectAndReport, 800);
-  setTimeout(collectAndReport, 1600);
+  setTimeout(collectAndReport,300);
+  setTimeout(collectAndReport,800);
+  setTimeout(collectAndReport,1600);
 }
 
 function scheduleAutoReport(){
