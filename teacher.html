@@ -1100,7 +1100,17 @@ function drawPreview(cv,state){
     if(state.smoothTime>=10){ctx.fillStyle='#059669';ctx.fillRect(W/2-20,90,40,13);ctx.fillStyle='#fff';ctx.font='bold 10px -apple-system,sans-serif';ctx.fillText('완료',W/2,96);}
   } else if(state._inputs&&Object.keys(state._inputs).length){
     var keys=Object.keys(state._inputs).slice(0,4),sy=H/2-(keys.length-1)*10;
-    ctx.fillStyle='#555';keys.forEach(function(k,i){ctx.fillText(k+'='+state._inputs[k],W/2,sy+i*20);});
+    ctx.fillStyle='#555';
+    keys.forEach(function(k,i){
+      var v=state._inputs[k];
+      if(typeof v==='number') v=Math.round(v*100)/100; // 소수점 2자리
+      ctx.fillText(k+' = '+v,W/2,sy+i*20);
+    });
+  } else if(state.result!==undefined){
+    // 확률실험 등 결과값 직접 표시
+    ctx.fillStyle='#3C3489';ctx.font='bold 14px -apple-system,sans-serif';
+    ctx.fillText(String(state.result),W/2,H/2-8);
+    if(state.label){ctx.fillStyle='#888';ctx.font='11px -apple-system,sans-serif';ctx.fillText(state.label,W/2,H/2+12);}
   } else {ctx.fillStyle='#aaa';ctx.fillText('활동 중',W/2,H/2);}
 }
 

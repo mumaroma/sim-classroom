@@ -316,8 +316,8 @@ function collectAndReport(){
   });
   // ② .pc 드래그 조각 위치 수집 (퍼즐형 시뮬레이션)
   var posData=captureGamePieces(c);
-  // ③ SVG 썸네일 (SVG 기반 시뮬레이션)
-  var thumb=captureSVGThumb(c);
+  // ③ 썸네일 캡처 (SVG 우선, 없으면 Canvas)
+  var thumb=captureSVGThumb(c)||captureCanvasThumb(c);
   // 상태 합성
   var state=Object.assign({},_customState||{},{_inputs:inputs});
   if(posData) state.pos=posData;
@@ -368,7 +368,7 @@ function captureGamePieces(container){
   return allZero?null:result;
 }
 
-// SVG 썸네일 캡처 (CSS 변수 없는 SVG만)
+// SVG 썸네일 캡처
 function captureSVGThumb(container){
   var svgs=container.querySelectorAll('svg');
   var svg=null;
@@ -378,6 +378,31 @@ function captureSVGThumb(container){
     var s=new XMLSerializer().serializeToString(svg);
     if(s.indexOf('var(--')>=0||s.length>60000)return null;
     return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+  }catch(e){return null;}
+}
+
+// Canvas 썸네일 캡처 (확률실험, 히스토그램, 그래프 등)
+function captureCanvasThumb(container){
+  // opc(오버레이)가 아닌 메인 캔버스 찾기
+  var canvases=container.querySelectorAll('canvas');
+  var cv=null;
+  canvases.forEach(function(c){
+    if(c.id!=='opc'&&c.width>50&&c.height>50) cv=c;
+  });
+  if(!cv)return null;
+  try{
+    // 내용이 있는지 확인 (빈 캔버스 제외)
+    var ctx=cv.getContext('2d');
+    var d=ctx.getImageData(0,0,Math.min(cv.width,100),Math.min(cv.height,100)).data;
+    var hasContent=false;
+    for(var i=3;i<d.length;i+=4){if(d[i]>10){hasContent=true;break;}}
+    if(!hasContent)return null;
+    // 썸네일 크기 축소 (200x150으로 리샘플)
+    var thumb=document.createElement('canvas');
+    thumb.width=200;thumb.height=150;
+    var tctx=thumb.getContext('2d');
+    tctx.drawImage(cv,0,0,200,150);
+    return thumb.toDataURL('image/jpeg',0.7);
   }catch(e){return null;}
 }
 
