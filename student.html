@@ -98,8 +98,9 @@ var sbClient=null;
 var reportTimer=null;
 var lastState='';
 var isPreview=params.get('preview')==='1';
+var isTeacherPreview=params.get('teacher_preview')==='1';
 // 미리보기 모드이면 이름 입력창 즉시 숨김
-if(isPreview) document.getElementById('namePrompt').style.display='none';
+if(isPreview||isTeacherPreview) document.getElementById('namePrompt').style.display='none';
 // 상태 복원 (교사 미리보기용)
 // state: URL 파라미터(구버전) 또는 sessionStorage key(신버전)
 var _sp=params.get('state');
@@ -125,8 +126,20 @@ var SB_KEY=params.get('sk')||localStorage.getItem('sb_key')||'';
 if(SB_URL&&SB_KEY){
   sbClient=supabase.createClient(SB_URL,SB_KEY);
   // 이 기기에도 저장 (다음 접속 편의)
-  localStorage.setItem('sb_url',SB_URL);
-  localStorage.setItem('sb_key',SB_KEY);
+  if(!isTeacherPreview){
+    localStorage.setItem('sb_url',SB_URL);
+    localStorage.setItem('sb_key',SB_KEY);
+  }
+}
+
+// 교사 미리보기: 이름/세션 없이 바로 시뮬레이션 로드
+if(isTeacherPreview){
+  window.reportSimState=function(){};  // 상태 보고 비활성화
+  document.getElementById('tbSession').textContent='미리보기';
+  document.getElementById('tbName').textContent='교사';
+  document.getElementById('connDot').classList.add('ok');
+  document.getElementById('connText').textContent='미리보기 모드';
+  loadSimulation();
 }
 
 // 이름 입력

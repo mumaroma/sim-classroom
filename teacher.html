@@ -679,6 +679,10 @@ async function loadSimList(){
       var actDiv=document.createElement('div');actDiv.className='sim-actions';
       if(isRunning){var badge=document.createElement('span');badge.className='badge-running';badge.textContent='진행 중';actDiv.appendChild(badge);}
 
+      var previewBtn=document.createElement('button');
+      previewBtn.className='btn btn-outline btn-sm';previewBtn.textContent='👁 미리보기';
+      previewBtn.addEventListener('click',(function(id,title){return function(e){e.stopPropagation();previewSim(id,title);};})(sim.id,sim.title));
+
       var openBtn=document.createElement('button');
       openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 클래스 열기';
       openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
@@ -691,7 +695,7 @@ async function loadSimList(){
       delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
       delBtn.addEventListener('click',(function(id){return function(){deleteSim(id);};})(sim.id));
 
-      actDiv.appendChild(openBtn);actDiv.appendChild(moveBtn);actDiv.appendChild(delBtn);
+      actDiv.appendChild(previewBtn);actDiv.appendChild(openBtn);actDiv.appendChild(moveBtn);actDiv.appendChild(delBtn);
       el.appendChild(infoDiv);el.appendChild(actDiv);
       body.appendChild(el);
     });
@@ -1045,6 +1049,22 @@ function renderHiddenList(){
 }
 
 // ── 학생 모달 ──
+// 시뮬레이션 미리보기 (교사용 — 학생 기록 없음)
+function previewSim(simId, simTitle){
+  var base=window.location.href.replace('teacher.html','student.html');
+  var url=base+'?sim='+simId+'&preview=1&teacher_preview=1';
+  // Supabase 키 포함 (student.html이 시뮬레이션 코드 불러올 때 필요)
+  var su=localStorage.getItem('sb_url'),sk=localStorage.getItem('sb_key');
+  if(su&&sk) url+='&su='+encodeURIComponent(su)+'&sk='+encodeURIComponent(sk);
+
+  document.getElementById('modalTitle').innerHTML=
+    '👁 <b>'+esc(simTitle)+'</b> 미리보기'
+    +'<span style="font-size:11px;color:#1D9E75;font-weight:400;margin-left:8px">학생 기록 없음</span>';
+  document.getElementById('modalFrame').src=url;
+  document.getElementById('simModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
 function showStudentModal(name){
   var row=students[name];if(!row||!sessionId||!currentSimId)return;
   var state=row.state||{};
