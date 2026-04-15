@@ -219,10 +219,13 @@ function injectSim(html){
     +'window.initialSimState='+initialState+';'
     // reportSimState 오버라이드
     +'window.reportSimState=function(state){'
+    +'  if(window._isTeacherPreview)return;'  // teacher_preview 모드에서 전송 차단
     +'  try{parent.postMessage({type:"simState",state:state},"*");}catch(e){}'
     +'};'
-    // ① 즉시 "접속됨" 신호 전송 (Canvas 없어도 학생 카드 생성)
-    +'try{parent.postMessage({type:"simAlive"},"*");}catch(e){}'
+    // ① 즉시 "접속됨" 신호 전송 (일반 학생 모드에서만)
+    // teacher_preview 모드에서는 postMessage 전송 안 함
+    +'var _isTeacherPreview=window.location&&window.location.search&&window.location.search.indexOf("teacher_preview=1")>=0;'
+    +'if(!_isTeacherPreview){try{parent.postMessage({type:"simAlive"},"*");}catch(e){}}'
     // ② 슬라이더 초기값 전송
     +'function sendInputs(){'
     +'  var inputs={};'
@@ -230,7 +233,7 @@ function injectSim(html){
     +'    var k=el.id||el.name||("f"+i);'
     +'    inputs[k]=isNaN(parseFloat(el.value))?el.value:parseFloat(el.value);'
     +'  });'
-    +'  parent.postMessage({type:"simInputs",inputs:inputs},"*");'
+    +'  if(!window._isTeacherPreview) parent.postMessage({type:"simInputs",inputs:inputs},"*");'
     +'}'
     // ③ 슬라이더 변경 감지 (이미 로드됐으면 즉시, 아니면 DOMContentLoaded 후)
     +'function setupListeners(){'
@@ -245,25 +248,75 @@ function injectSim(html){
     +'  setTimeout(sendInputs,800);' // 초기값 한 번 전송
     +'}'
     +'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",setupListeners);}else{setupListeners();}'
-    // ④ Canvas 스냅샷 주기 전송
-    +'setInterval(function(){'
-    +'  try{'
-    +'    var canvases=document.querySelectorAll("canvas");'
-    +'    var cv=null;'
-    +'    canvases.forEach(function(c){'
-    +'      if(c.id==="opc")return;'
-    +'      var r=c.getBoundingClientRect();'
-    +'      if(r.width>50&&r.height>50)cv=c;' // CSS 크기 기준으로 변경
+    // ⑤ initialSimState 복원 (교사 미리보기 시 학생 마지막 상태로 복원)
+    +'function restoreState(){'
+    +'  var _s=window.initialSimState;if(!_s)return;'
+    // 슬라이더 값 복원
+    +'  if(_s._inputs){'
+    +'    Object.keys(_s._inputs).forEach(function(id){'
+    +'      var el=document.getElementById(id);if(!el)return;'
+    +'      el.value=_s._inputs[id];'
+    +'      el.dispatchEvent(new Event("input",{bubbles:true}));'
+    +'      el.dispatchEvent(new Event("change",{bubbles:true}));'
     +'    });'
-    +'    if(cv){'
-    +'      var thumb=document.createElement("canvas");'
-    +'      thumb.width=220;thumb.height=140;'
-    +'      thumb.getContext("2d").drawImage(cv,0,0,220,140);'
-    +'      var d=thumb.toDataURL("image/jpeg",0.75);'
-    +'      if(d&&d.length>200) parent.postMessage({type:"simThumb",data:d},"*");'
+    +'  }'
+    // .pc 조각 위치 복원 (슬라이더 이벤트로 리셋된 후 덮어쓰기)
+    +'  if(_s.pos&&_s.pos.length){'
+    +'    setTimeout(function(){'
+    +'      var arEl=document.getElementById("ar");if(!arEl)return;'
+    +'      var ar=arEl.getBoundingClientRect();'
+    +'      var aw=ar.width,ah=ar.height;if(!aw||!ah)return;'
+    +'      var pieces=arEl.querySelectorAll(".pc");'
+    +'      _s.pos.forEach(function(p,i){'
+    +'        if(!pieces[i])return;'
+    +'        if(p.x!==undefined) pieces[i].style.left=(p.x*aw)+"px";'
+    +'        if(p.y!==undefined) pieces[i].style.top=(p.y*ah)+"px";'
+    +'      });'
+    +'    },400);'
+    +'  }'
+    +'}'
+    +'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(restoreState,600);});}else{setTimeout(restoreState,600);}'
+    // ④ 주기적 캡처: Canvas + .pc 조각 위치
+    +'function captureAll(){'
+    +'try{'
+    +'var canvases=document.querySelectorAll("canvas");'
+    +'var cv=null;'
+    +'canvases.forEach(function(c){'
+    +'  if(c.id==="opc")return;'
+    +'  var r=c.getBoundingClientRect();'
+    +'  if(r.width>50&&r.height>50)cv=c;'
+    +'});'
+    +'if(cv){'
+    +'  var thumb=document.createElement("canvas");'
+    +'  thumb.width=220;thumb.height=140;'
+    +'  thumb.getContext("2d").drawImage(cv,0,0,220,140);'
+    +'  var d=thumb.toDataURL("image/jpeg",0.75);'
+    +'  if(d&&d.length>200)parent.postMessage({type:"simThumb",data:d},"*");'
+    +'}'
+    +'var arEl=document.getElementById("ar");'
+    +'if(arEl){'
+    +'  var pieces=arEl.querySelectorAll(".pc");'
+    +'  if(pieces.length){'
+    +'    var ar=arEl.getBoundingClientRect();'
+    +'    var aw=ar.width,ah=ar.height;'
+    +'    if(aw>0&&ah>0){'
+    +'      var posData=Array.prototype.map.call(pieces,function(el){'
+    +'        return{x:(parseFloat(el.style.left)||0)/aw,y:(parseFloat(el.style.top)||0)/ah,w:(parseFloat(el.style.width)||0)/aw,h:(parseFloat(el.style.height)||0)/ah};'
+    +'      });'
+    +'      var modeVal=typeof curMode!=="undefined"?curMode:"";'
+    +'      parent.postMessage({type:"simPieces",pos:posData,mode:modeVal},"*");'
     +'    }'
-    +'  }catch(e){}'
-    +'},1500);'
+    +'  }'
+    +'}'
+    +'}catch(e){}'
+    +'}'
+    +'setInterval(captureAll,1000);'  // 1초마다 주기적 캡처
+    +'document.addEventListener("mouseup",function(){setTimeout(captureAll,150);});'
+    +'document.addEventListener("touchend",function(){setTimeout(captureAll,150);});'
+    // 초기 로드 후 단계적으로 캡처 시도 (시뮬레이션 초기화 대기)
+    +'setTimeout(captureAll,400);'
+    +'setTimeout(captureAll,900);'
+    +'setTimeout(captureAll,1800);'
     +'})();<\/script>';
 
   var injected=fullHtml.replace(/<\/body>/i, bridge+'</body>');
@@ -310,9 +363,23 @@ window.addEventListener('message',function(e){
     _lastThumb=e.data.data;
     if(_customState){_customState.thumbnail=_lastThumb;doReport(_customState);}
     else doReport({thumbnail:_lastThumb,mode:'활동중',_inputs:_lastInputs});
+  } else if(e.data.type==='simPieces'){
+    // .pc 퍼즐 조각 위치 수신
+    var pieceState=Object.assign({},_customState||{},{
+      pos:e.data.pos,
+      mode:e.data.mode||(_customState&&_customState.mode)||'활동중',
+      thumbnail:_lastThumb||undefined,
+      _inputs:_lastInputs
+    });
+    _customState=pieceState;
+    doReport(pieceState);
   } else if(e.data.type==='simInputs'){
     _lastInputs=e.data.inputs;
-    doReport(Object.assign({},_customState||{},{_inputs:_lastInputs,thumbnail:_lastThumb||undefined}));
+    var inp=Object.assign({},_customState||{},{_inputs:_lastInputs,thumbnail:_lastThumb||undefined});
+    // sA/sB 슬라이더는 a/b로도 저장
+    if(_lastInputs.sA!==undefined) inp.a=parseInt(_lastInputs.sA);
+    if(_lastInputs.sB!==undefined) inp.b=parseInt(_lastInputs.sB);
+    doReport(inp);
   }
 });
 

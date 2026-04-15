@@ -1040,10 +1040,6 @@ function upsertStudent(row){
   students[row.student_name]=row;
   if(sbClient&&sessionId) sbClient.from('sessions').update({student_count:Object.keys(students).length}).eq('id',sessionId).then(function(){});
   renderCard(row);updateBar();
-  // 모달이 이 학생 것이면 실시간 갱신
-  if(_modalTargetName===row.student_name&&document.getElementById('simModal').style.display==='block'){
-    renderModalContent(row);
-  }
 }
 function updateBar(){
   var total=Object.keys(students).length;
@@ -1093,12 +1089,23 @@ function renderCard(row,grid,readOnly){
   }
   var cv=el.querySelector('canvas');
   var imgEl=el.querySelector('img.s-thumb');
+
   if(state.thumbnail){
-    if(!imgEl){imgEl=document.createElement('img');imgEl.className='s-thumb';imgEl.style.cssText='width:100%;border-radius:5px;border:1px solid #eee;display:block;background:#fafaf8;min-height:70px;object-fit:contain';if(cv)cv.parentNode.insertBefore(imgEl,cv);}
-    imgEl.src=state.thumbnail;imgEl.style.display='block';if(cv)cv.style.display='none';
+    // ① 실제 그래프/Canvas 이미지 (최우선)
+    if(!imgEl){
+      imgEl=document.createElement('img');imgEl.className='s-thumb';
+      imgEl.style.cssText='width:100%;border-radius:5px;border:1px solid #eee;display:block;background:#fafaf8;min-height:80px;object-fit:contain';
+      if(cv)cv.parentNode.insertBefore(imgEl,cv);
+    }
+    imgEl.src=state.thumbnail;imgEl.style.display='block';
+    if(cv)cv.style.display='none';
+  } else if(state.pos&&state.pos.length&&state.pos.some(function(p){return p.w>0&&p.h>0;})){
+    // ② 퍼즐 조각 위치 그리기
+    if(cv){cv.style.display='block';if(imgEl)imgEl.style.display='none';drawPreview(cv,state);}
   } else if(cv){
+    // ③ 텍스트 요약 (슬라이더값, DMTG 정보 등)
     cv.style.display='block';if(imgEl)imgEl.style.display='none';
-    if(state.pos||state.smoothTime!==undefined||state._inputs) drawPreview(cv,state);
+    drawPreview(cv,state);
   }
   var ab=el.querySelector('.s-ab');
   if(ab){
@@ -1117,8 +1124,7 @@ function drawPreview(cv,state){
   cv.width=W;var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9fafb';ctx.fillRect(0,0,W,H);
   if(state.pos&&state.pos.length){
-    // 전체가 0인지 체크 (미캡처 상태)
-    var hasData=state.pos.some(function(p){return p.w>0&&p.h>0;});
+    var hasData=state.pos.some(function(p){return p.w>0.001&&p.h>0.001;});
     if(hasData){
       state.pos.forEach(function(p,i){
         var x=p.x*W,y=p.y*H,w=p.w*W,h=p.h*H;
@@ -1230,312 +1236,58 @@ function renderHiddenList(){
 // ── 학생 모달 ──
 // 시뮬레이션 미리보기 (교사용 — 학생 기록 없음)
 function previewSim(simId, simTitle){
+  // 학생 모달과 완전히 분리 — _modalTargetName 초기화
+  _modalTargetName=null;
+  // 기존 studentPreviewContent 제거
+  var old=document.getElementById('studentPreviewContent');if(old)old.remove();
+
   var base=window.location.href.replace('teacher.html','student.html');
   var url=base+'?sim='+simId+'&preview=1&teacher_preview=1';
-  // Supabase 키 포함 (student.html이 시뮬레이션 코드 불러올 때 필요)
   var su=localStorage.getItem('sb_url'),sk=localStorage.getItem('sb_key');
   if(su&&sk) url+='&su='+encodeURIComponent(su)+'&sk='+encodeURIComponent(sk);
 
   document.getElementById('modalTitle').innerHTML=
     '👁 <b>'+esc(simTitle)+'</b> 미리보기'
     +'<span style="font-size:11px;color:#1D9E75;font-weight:400;margin-left:8px">학생 기록 없음</span>';
-  document.getElementById('modalFrame').src=url;
+  var frame=document.getElementById('modalFrame');
+  frame.style.display='block';
+  frame.src=url;
   document.getElementById('simModal').style.display='block';
   document.body.style.overflow='hidden';
 }
 
-var _modalTargetName=null; // 현재 열린 모달의 학생 이름
+var _modalTargetName=null;
 
 function showStudentModal(name){
   var row=students[name];if(!row||!sessionId||!currentSimId)return;
   _modalTargetName=name;
+  var state=row.state||{};
 
   document.getElementById('modalTitle').innerHTML=
     '👁 <b>'+esc(isAnon?getDisplayName(name):name)+'</b>의 활동 결과'
-    +'<span id="modalLiveDot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1D9E75;margin-left:8px;animation:pulse 2s infinite;vertical-align:middle" title="실시간 갱신 중"></span>';
+    +'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1D9E75;margin-left:8px;animation:pulse 2s infinite;vertical-align:middle"></span>'
+    +'<span style="font-size:11px;color:#aaa;margin-left:10px;font-weight:400">조작 가능 — 학생 영향 없음</span>';
 
-  document.getElementById('modalFrame').style.display='none';
-  renderModalContent(row);
+  // 기존 preview 패널 제거
+  var oldEl=document.getElementById('studentPreviewContent');if(oldEl)oldEl.remove();
 
+  // 학생 상태를 sessionStorage에 저장
+  var previewKey='preview_'+Date.now();
+  try{sessionStorage.setItem(previewKey,JSON.stringify(state));}catch(e){}
+
+  // student.html iframe으로 로드 (preview 모드)
+  var base=window.location.href.replace('teacher.html','student.html');
+  var su=localStorage.getItem('sb_url')||'',sk=localStorage.getItem('sb_key')||'';
+  var url=base+'?session='+sessionId+'&sim='+currentSimId
+    +'&name='+encodeURIComponent(name)+'&preview=1&statekey='+previewKey
+    +(su?'&su='+encodeURIComponent(su):'')
+    +(sk?'&sk='+encodeURIComponent(sk):'');
+
+  var frame=document.getElementById('modalFrame');
+  frame.style.display='block';
+  frame.src=url;
   document.getElementById('simModal').style.display='block';
   document.body.style.overflow='hidden';
 }
 
-function renderModalContent(row){
-  var state=row.state||{};
-  var old=document.getElementById('studentPreviewContent');
-  if(old)old.remove();
 
-  var div=document.createElement('div');
-  div.id='studentPreviewContent';
-  div.style.cssText='padding:12px;background:#f8f9fa;border-radius:8px;';
-
-  // ① Canvas 스냅샷
-  if(state.thumbnail){
-    var img=document.createElement('img');
-    img.src=state.thumbnail;
-    img.style.cssText='width:100%;border-radius:8px;border:1px solid #e0e0dd;margin-bottom:12px;display:block;max-height:300px;object-fit:contain;background:#fff';
-    div.appendChild(img);
-  }
-
-  // ② 통계/결과 카드
-  var pairs=[
-    ['확률 설정', state.probability!==undefined?(state.probability*100).toFixed(0)+'%':null],
-    ['동전 수', state.numFlips?state.numFlips+'개':null],
-    ['실험 횟수', state.completedExperiments?state.completedExperiments+'회':null],
-    ['실제 평균', state.actualMean!=null?state.actualMean+'%':null],
-    ['이론 평균', state.theoreticalMean!=null?state.theoreticalMean+'%':null],
-    ['실제 표준편차', state.actualStd!=null?state.actualStd+'%':null],
-    ['이론 표준편차', state.theoreticalStd!=null?state.theoreticalStd+'%':null],
-    ['상태', state.mode&&state.mode!=='접속됨'?state.mode:null],
-    ['a값', state.a!==undefined?state.a:null],
-    ['b값', state.b!==undefined?state.b:null],
-  ];
-  if(state._inputs){
-    Object.keys(state._inputs).forEach(function(k){
-      if(!['sA','sB'].includes(k)) pairs.push([k, state._inputs[k]]);
-    });
-  }
-  var validPairs=pairs.filter(function(p){return p[1]!==null&&p[1]!==undefined;});
-
-  if(validPairs.length){
-    var statHtml='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px">';
-    validPairs.forEach(function(p){
-      statHtml+='<div style="background:#fff;border-radius:8px;padding:10px;border:1px solid #e0e0dd;text-align:center">'
-        +'<div style="font-size:11px;color:#888;margin-bottom:3px">'+p[0]+'</div>'
-        +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+p[1]+'</div>'
-        +'</div>';
-    });
-    statHtml+='</div>';
-    var sd=document.createElement('div');sd.innerHTML=statHtml;
-    div.appendChild(sd);
-  }
-
-  if(!state.thumbnail&&!validPairs.length){
-    div.innerHTML='<div style="text-align:center;padding:40px;color:#aaa;font-size:13px">'
-      +'<div style="font-size:32px;margin-bottom:8px">⏳</div>'
-      +'학생이 시뮬레이션을 조작하면 여기에 표시됩니다.</div>';
-  }
-
-  if(row.updated_at){
-    var d=new Date(row.updated_at);
-    var ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
-    var timeEl=document.createElement('div');
-    timeEl.style.cssText='text-align:right;font-size:11px;color:#bbb;margin-top:4px';
-    timeEl.textContent='마지막 업데이트: '+ts;
-    div.appendChild(timeEl);
-  }
-
-  var modalBox=document.querySelector('.modal-box');
-  modalBox.appendChild(div);
-}
-function closeModal(){
-  document.getElementById('simModal').style.display='none';
-  document.getElementById('modalFrame').src='';
-  document.getElementById('modalFrame').style.display='block';
-  var old=document.getElementById('studentPreviewContent');
-  if(old)old.remove();
-  _modalTargetName=null;
-  document.body.style.overflow='';
-}
-
-// ── 클래스 기록 ──
-var histFilter='all';
-async function loadHistory(){
-  if(!sbClient){document.getElementById('histList').innerHTML='<div class="hist-empty">먼저 연결 설정을 완료해주세요.</div>';return;}
-  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
-  if(!_tid){document.getElementById('histList').innerHTML='<div class="hist-empty">로그인 후 확인할 수 있어요.</div>';return;}
-  // DB에서 엄격하게 내 클래스만 조회
-  var r=await sbClient.from('sessions').select('*')
-    .eq('teacher_id',_tid)
-    .order('created_at',{ascending:false})
-    .limit(200);
-  var sessions=r.data||[];
-  renderHistFilters(sessions);
-  renderHistList(sessions);
-}
-function renderHistFilters(sessions){
-  var titles={};
-  sessions.forEach(function(s){if(s.sim_title)titles[s.sim_title]=true;});
-  var bar=document.getElementById('histFilters');bar.innerHTML='';
-  var all=document.createElement('button');
-  all.className='hist-filter'+(histFilter==='all'?' on':'');
-  all.textContent='전체';
-  all.addEventListener('click',function(){histFilter='all';loadHistory();});
-  bar.appendChild(all);
-  Object.keys(titles).forEach(function(t){
-    var btn=document.createElement('button');
-    btn.className='hist-filter'+(histFilter===t?' on':'');
-    btn.textContent=t.length>12?t.slice(0,12)+'…':t;
-    btn.addEventListener('click',function(){histFilter=t;loadHistory();});
-    bar.appendChild(btn);
-  });
-}
-function renderHistList(sessions){
-  var list=document.getElementById('histList');list.innerHTML='';
-  // DB에서 이미 내 클래스만 가져왔으므로 바로 필터
-  var filtered=histFilter==='all'?sessions:sessions.filter(function(s){return s.sim_title===histFilter;});
-  if(!filtered.length){list.innerHTML='<div class="hist-empty">아직 클래스 기록이 없어요.<br><span style="font-size:12px">클래스를 열고 종료하면 여기에 표시됩니다</span></div>';return;}
-  filtered.forEach(function(s){
-    var d=new Date(s.created_at);
-    var ds=(d.getMonth()+1)+'/'+(d.getDate())+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
-    var isLive=sessionId===s.id;
-    var el=document.createElement('div');el.className='hist-item';
-
-    var leftDiv=document.createElement('div');leftDiv.className='hist-left';
-    leftDiv.innerHTML='<div class="hist-title">'+esc(s.sim_title||'제목 없음')+'</div>'
-      +'<div class="hist-meta">'
-      +'<span class="hist-class">'+esc(s.class_name||'기본반')+'</span>'
-      +'<span>'+ds+'</span>'
-      +(isLive?'<span class="hist-status-live">● 진행 중</span>':'<span class="hist-status-done">'+(s.ended_at?'종료':'미종료')+'</span>')
-      +'</div>';
-
-    var rightDiv=document.createElement('div');
-    rightDiv.style.cssText='display:flex;align-items:center;gap:8px;flex-shrink:0';
-    var countSpan=document.createElement('div');countSpan.className='hist-count';
-    countSpan.textContent=(s.student_count||0)+'명';
-    var delBtn=document.createElement('button');
-    delBtn.className='btn btn-danger btn-sm';
-    delBtn.textContent='삭제';
-    delBtn.title='이 클래스 기록 삭제';
-    delBtn.addEventListener('click',(function(sid,stitle,scls){
-      return function(e){
-        e.stopPropagation();
-        deleteHistSession(sid,stitle,scls);
-      };
-    })(s.id, s.sim_title||'제목 없음', s.class_name||'기본반'));
-
-    rightDiv.appendChild(countSpan);
-    rightDiv.appendChild(delBtn);
-    el.appendChild(leftDiv);
-    el.appendChild(rightDiv);
-    el.querySelector('.hist-left').addEventListener('click',function(){showHistDetail(s);});
-    list.appendChild(el);
-  });
-}
-async function showHistDetail(s){
-  if(!sbClient)return;
-  document.getElementById('histDetail').style.display='block';
-
-  // 제목 + 이어보기/새세션 버튼
-  var titleEl=document.getElementById('histDetailTitle');
-  titleEl.innerHTML='';
-  var titleSpan=document.createElement('span');
-  titleSpan.textContent=esc(s.sim_title)+' — '+esc(s.class_name||'기본반')+' ('+new Date(s.created_at).toLocaleDateString('ko')+')';
-  var btnWrap=document.createElement('div');btnWrap.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-
-  // 이어보기 버튼
-  var resumeBtn=document.createElement('button');
-  resumeBtn.className='btn btn-outline btn-sm';
-  resumeBtn.textContent='📡 클래스 이어보기';
-  resumeBtn.title='이 클래스를 실시간으로 다시 모니터링';
-  resumeBtn.addEventListener('click',function(){resumeSession(s);});
-
-  // 새 세션 버튼
-  var newBtn=document.createElement('button');
-  newBtn.className='btn btn-green btn-sm';
-  newBtn.textContent='▶ 새 클래스로 시작';
-  newBtn.title='같은 시뮬레이션·반으로 새 클래스 열기';
-  newBtn.addEventListener('click',function(){
-    openSession(s.sim_id,s.sim_title,s.class_name||'기본반');
-    closeHistDetail();
-  });
-
-  btnWrap.appendChild(resumeBtn);btnWrap.appendChild(newBtn);
-  titleEl.appendChild(titleSpan);titleEl.appendChild(btnWrap);
-
-  var grid=document.getElementById('histStudentGrid');
-  grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">불러오는 중...</div>';
-  // 내 클래스 기록인지 확인
-  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
-  if(_tid && s.teacher_id && s.teacher_id!==_tid){
-    grid.innerHTML='<div style="color:#e24b4a;font-size:13px;padding:20px;grid-column:1/-1">접근 권한이 없어요.</div>';
-    return;
-  }
-  var r=await sbClient.from('sim_states').select('*').eq('session_id',s.id);
-  grid.innerHTML='';
-  if(!r.data||!r.data.length){grid.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;grid-column:1/-1">학생 데이터가 없어요.</div>';return;}
-  r.data.forEach(function(row){renderCard(row,grid,true);});
-}
-
-// 과거 클래스 이어보기 (실시간 모니터링 재개)
-function resumeSession(s){
-  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
-  if(_tid && s.teacher_id && s.teacher_id!==_tid){alert('내 클래스만 이어볼 수 있어요.');return;}
-  if(sessionId&&sessionId!==s.id&&!confirm('현재 진행 중인 클래스를 종료하고 이 클래스로 전환할까요?'))return;
-  if(channel)sbClient.removeChannel(channel);
-  sessionId=s.id;
-  currentSimId=s.sim_id;currentSimTitle=s.sim_title||'';currentClassName=s.class_name||'기본반';
-  localStorage.setItem('session_id',s.id);
-  localStorage.setItem('session_sim_id',s.sim_id);
-  localStorage.setItem('session_sim_title',s.sim_title||'');
-  localStorage.setItem('session_class',s.class_name||'기본반');
-  clearGrid();hiddenStudents={};anonMap={};anonCount=0;
-  document.getElementById('sessionCode').textContent=s.id;
-  document.getElementById('sessionClassBadge').textContent=currentClassName;
-  document.getElementById('sessionSimName').textContent='📌 '+currentSimTitle;
-  var base=window.location.href.replace('teacher.html','student.html');
-  var _su=localStorage.getItem('sb_url')||'';
-  var _sk=localStorage.getItem('sb_key')||'';
-  var link=base+'?session='+s.id+'&sim='+s.sim_id;
-  if(_su&&_sk) link+='&su='+encodeURIComponent(_su)+'&sk='+encodeURIComponent(_sk);
-  document.getElementById('studentLink').value=link;
-  document.getElementById('openLink').href=link;
-  document.getElementById('sessionCard').style.display='block';
-  document.getElementById('noSessionMsg').style.display='none';
-  document.getElementById('studentsCard').style.display='block';
-  document.getElementById('liveDot').classList.add('live');
-  loadStudentData();subscribeRealtime();loadSimList();
-  switchTab('live');
-  closeHistDetail();
-}
-function closeHistDetail(){
-  document.getElementById('histDetail').style.display='none';
-  document.getElementById('histStudentGrid').innerHTML='';
-}
-
-// 기존에 teacher_id 없이 저장된 세션을 현재 선생님 소유로 설정
-async function deleteHistSession(sessionId, simTitle, className){
-  var label=simTitle+' — '+className;
-  if(!confirm('['+label+'] 클래스 기록을 삭제할까요? 학생 활동 데이터도 함께 삭제됩니다.'))return;
-  try{
-    // 학생 상태 데이터 삭제
-    await sbClient.from('sim_states').delete().eq('session_id',sessionId);
-    // 세션 기록 삭제
-    await sbClient.from('sessions').delete().eq('id',sessionId);
-    // 현재 진행 중인 클래스라면 세션 초기화
-    if(window.sessionId===sessionId){
-      window.sessionId=null;
-      document.getElementById('sessionCard').style.display='none';
-      document.getElementById('noSessionMsg').style.display='';
-      document.getElementById('studentsCard').style.display='none';
-      if(channel)sbClient.removeChannel(channel);
-      if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
-      clearGrid();
-      ['session_id','session_sim_id','session_sim_title','session_class'].forEach(function(k){localStorage.removeItem(k);});
-    }
-    closeHistDetail();
-    loadHistory();
-  }catch(e){alert('삭제 중 오류가 발생했어요: '+e.message);}
-}
-
-async function migrateOldSessions(){
-  var _tid=sessionStorage.getItem('teacher_loggedin')||'';
-  if(!sbClient||!_tid)return;
-  try{
-    // teacher_id가 없거나 빈 문자열인 세션 조회
-    var r=await sbClient.from('sessions').select('id')
-      .or('teacher_id.is.null,teacher_id.eq.');
-    if(r.data&&r.data.length){
-      var ids=r.data.map(function(s){return s.id;});
-      // 해당 세션들을 현재 선생님 소유로 업데이트
-      await sbClient.from('sessions').update({teacher_id:_tid})
-        .in('id',ids);
-    }
-  }catch(e){} // 오류는 무시
-}
-
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-</script>
-</body>
-</html>
