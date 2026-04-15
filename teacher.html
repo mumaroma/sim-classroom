@@ -805,7 +805,11 @@ function startSession(code,isNew){
   document.getElementById('sessionClassBadge').textContent=currentClassName;
   document.getElementById('sessionSimName').textContent='📌 '+currentSimTitle;
   var base=window.location.href.replace('teacher.html','student.html');
+  // Supabase 키를 링크에 포함 (학생 기기에 키가 없으므로)
+  var _su=localStorage.getItem('sb_url')||'';
+  var _sk=localStorage.getItem('sb_key')||'';
   var link=base+'?session='+code+'&sim='+currentSimId;
+  if(_su&&_sk) link+='&su='+encodeURIComponent(_su)+'&sk='+encodeURIComponent(_sk);
   document.getElementById('studentLink').value=link;
   document.getElementById('openLink').href=link;
   document.getElementById('sessionCard').style.display='block';
@@ -1228,7 +1232,10 @@ function resumeSession(s){
   document.getElementById('sessionClassBadge').textContent=currentClassName;
   document.getElementById('sessionSimName').textContent='📌 '+currentSimTitle;
   var base=window.location.href.replace('teacher.html','student.html');
+  var _su=localStorage.getItem('sb_url')||'';
+  var _sk=localStorage.getItem('sb_key')||'';
   var link=base+'?session='+s.id+'&sim='+s.sim_id;
+  if(_su&&_sk) link+='&su='+encodeURIComponent(_su)+'&sk='+encodeURIComponent(_sk);
   document.getElementById('studentLink').value=link;
   document.getElementById('openLink').href=link;
   document.getElementById('sessionCard').style.display='block';

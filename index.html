@@ -142,9 +142,12 @@ body{
 var sbClient=null;
 var currentSession=null; // {id, sim_id, sim_title, class_name}
 
-// Supabase 초기화 (localStorage에 저장된 키 사용)
-var SB_URL=localStorage.getItem('sb_url')||'';
-var SB_KEY=localStorage.getItem('sb_key')||'';
+// Supabase 초기화
+// 1순위: URL 파라미터 (선생님이 공유한 링크에 포함)
+// 2순위: localStorage (같은 기기에서 이전에 접속한 경우)
+var _urlParams=new URLSearchParams(location.search);
+var SB_URL=_urlParams.get('su')||localStorage.getItem('sb_url')||'';
+var SB_KEY=_urlParams.get('sk')||localStorage.getItem('sb_key')||'';
 if(SB_URL&&SB_KEY){
   sbClient=supabase.createClient(SB_URL,SB_KEY);
   localStorage.setItem('sb_url',SB_URL);
@@ -220,10 +223,7 @@ async function checkCode(){
   if(code.length<4){document.getElementById('codeErr').textContent='코드는 최소 4자리예요';return;}
 
   if(!sbClient){
-    // Supabase 없으면 코드만 가지고 student.html로 이동 (오프라인 대응)
-    currentSession={id:code,sim_id:null,sim_title:'',class_name:''};
-    showStep('step2');
-    document.getElementById('nameInput').focus();
+    document.getElementById('codeErr').textContent='선생님께 받은 전체 링크로 접속해야 해요. (직접 주소 입력 불가)';
     return;
   }
 
@@ -272,14 +272,21 @@ async function enterClass(){
 
   // student.html로 이동
   var base=location.href.replace(/[^/]*$/,'')+'student.html';
+  var simId=currentSession.sim_id||'';
   var url=base
     +'?session='+encodeURIComponent(currentSession.id)
-    +(currentSession.sim_id?'&sim='+encodeURIComponent(currentSession.sim_id):'')
+    +(simId?'&sim='+encodeURIComponent(simId):'')
     +'&name='+encodeURIComponent(name);
 
-  // Supabase 키도 URL에 포함 (학생 기기에 없을 수 있으므로)
+  // Supabase 키 포함 (학생 기기에 없을 수 있으므로 반드시 포함)
   if(SB_URL&&SB_KEY){
     url+='&su='+encodeURIComponent(SB_URL)+'&sk='+encodeURIComponent(SB_KEY);
+  } else {
+    // index.html에 키가 없으면 sessions에서 가져온 Supabase 정보 사용 불가
+    // → 에러 메시지 표시
+    showStep('step2');
+    document.getElementById('nameErr').textContent='Supabase 연결 정보가 없어요. 선생님께 전체 링크를 다시 받으세요.';
+    return;
   }
 
   location.href=url;
