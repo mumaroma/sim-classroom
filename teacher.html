@@ -1038,9 +1038,12 @@ function subscribeRealtime(){
 }
 function upsertStudent(row){
   students[row.student_name]=row;
-  // 세션 학생 수 업데이트
   if(sbClient&&sessionId) sbClient.from('sessions').update({student_count:Object.keys(students).length}).eq('id',sessionId).then(function(){});
   renderCard(row);updateBar();
+  // 모달이 이 학생 것이면 실시간 갱신
+  if(_modalTargetName===row.student_name&&document.getElementById('simModal').style.display==='block'){
+    renderModalContent(row);
+  }
 }
 function updateBar(){
   var total=Object.keys(students).length;
@@ -1241,30 +1244,98 @@ function previewSim(simId, simTitle){
   document.body.style.overflow='hidden';
 }
 
+var _modalTargetName=null; // 현재 열린 모달의 학생 이름
+
 function showStudentModal(name){
   var row=students[name];if(!row||!sessionId||!currentSimId)return;
-  var state=row.state||{};
-  // state를 URL 대신 sessionStorage에 임시 저장 (URI Too Long 방지)
-  var previewKey='preview_state_'+Date.now();
-  try{
-    // 썸네일은 용량이 크므로 제거 후 저장
-    var stateToSave=Object.assign({},state);
-    delete stateToSave.thumbnail;
-    sessionStorage.setItem(previewKey, JSON.stringify(stateToSave));
-  }catch(e){}
-  var base=window.location.href.replace('teacher.html','student.html');
-  var url=base+'?session='+sessionId+'&sim='+currentSimId
-    +'&name='+encodeURIComponent(name)
-    +'&preview=1'
-    +'&statekey='+previewKey;
-  document.getElementById('modalTitle').innerHTML='👁 <b>'+esc(name)+'</b>의 화면';
-  document.getElementById('modalFrame').src=url;
+  _modalTargetName=name;
+
+  document.getElementById('modalTitle').innerHTML=
+    '👁 <b>'+esc(isAnon?getDisplayName(name):name)+'</b>의 활동 결과'
+    +'<span id="modalLiveDot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1D9E75;margin-left:8px;animation:pulse 2s infinite;vertical-align:middle" title="실시간 갱신 중"></span>';
+
+  document.getElementById('modalFrame').style.display='none';
+  renderModalContent(row);
+
   document.getElementById('simModal').style.display='block';
   document.body.style.overflow='hidden';
+}
+
+function renderModalContent(row){
+  var state=row.state||{};
+  var old=document.getElementById('studentPreviewContent');
+  if(old)old.remove();
+
+  var div=document.createElement('div');
+  div.id='studentPreviewContent';
+  div.style.cssText='padding:12px;background:#f8f9fa;border-radius:8px;';
+
+  // ① Canvas 스냅샷
+  if(state.thumbnail){
+    var img=document.createElement('img');
+    img.src=state.thumbnail;
+    img.style.cssText='width:100%;border-radius:8px;border:1px solid #e0e0dd;margin-bottom:12px;display:block;max-height:300px;object-fit:contain;background:#fff';
+    div.appendChild(img);
+  }
+
+  // ② 통계/결과 카드
+  var pairs=[
+    ['확률 설정', state.probability!==undefined?(state.probability*100).toFixed(0)+'%':null],
+    ['동전 수', state.numFlips?state.numFlips+'개':null],
+    ['실험 횟수', state.completedExperiments?state.completedExperiments+'회':null],
+    ['실제 평균', state.actualMean!=null?state.actualMean+'%':null],
+    ['이론 평균', state.theoreticalMean!=null?state.theoreticalMean+'%':null],
+    ['실제 표준편차', state.actualStd!=null?state.actualStd+'%':null],
+    ['이론 표준편차', state.theoreticalStd!=null?state.theoreticalStd+'%':null],
+    ['상태', state.mode&&state.mode!=='접속됨'?state.mode:null],
+    ['a값', state.a!==undefined?state.a:null],
+    ['b값', state.b!==undefined?state.b:null],
+  ];
+  if(state._inputs){
+    Object.keys(state._inputs).forEach(function(k){
+      if(!['sA','sB'].includes(k)) pairs.push([k, state._inputs[k]]);
+    });
+  }
+  var validPairs=pairs.filter(function(p){return p[1]!==null&&p[1]!==undefined;});
+
+  if(validPairs.length){
+    var statHtml='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px">';
+    validPairs.forEach(function(p){
+      statHtml+='<div style="background:#fff;border-radius:8px;padding:10px;border:1px solid #e0e0dd;text-align:center">'
+        +'<div style="font-size:11px;color:#888;margin-bottom:3px">'+p[0]+'</div>'
+        +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+p[1]+'</div>'
+        +'</div>';
+    });
+    statHtml+='</div>';
+    var sd=document.createElement('div');sd.innerHTML=statHtml;
+    div.appendChild(sd);
+  }
+
+  if(!state.thumbnail&&!validPairs.length){
+    div.innerHTML='<div style="text-align:center;padding:40px;color:#aaa;font-size:13px">'
+      +'<div style="font-size:32px;margin-bottom:8px">⏳</div>'
+      +'학생이 시뮬레이션을 조작하면 여기에 표시됩니다.</div>';
+  }
+
+  if(row.updated_at){
+    var d=new Date(row.updated_at);
+    var ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+    var timeEl=document.createElement('div');
+    timeEl.style.cssText='text-align:right;font-size:11px;color:#bbb;margin-top:4px';
+    timeEl.textContent='마지막 업데이트: '+ts;
+    div.appendChild(timeEl);
+  }
+
+  var modalBox=document.querySelector('.modal-box');
+  modalBox.appendChild(div);
 }
 function closeModal(){
   document.getElementById('simModal').style.display='none';
   document.getElementById('modalFrame').src='';
+  document.getElementById('modalFrame').style.display='block';
+  var old=document.getElementById('studentPreviewContent');
+  if(old)old.remove();
+  _modalTargetName=null;
   document.body.style.overflow='';
 }
 

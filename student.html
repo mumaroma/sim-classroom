@@ -217,38 +217,53 @@ function injectSim(html){
   var initialState=window.initialSimState?JSON.stringify(window.initialSimState):'null';
   var bridge='<script>(function(){'
     +'window.initialSimState='+initialState+';'
+    // reportSimState 오버라이드
     +'window.reportSimState=function(state){'
     +'  try{parent.postMessage({type:"simState",state:state},"*");}catch(e){}'
     +'};'
-    // 자동 추적: 1초마다 Canvas 스냅샷 전송
+    // ① 즉시 "접속됨" 신호 전송 (Canvas 없어도 학생 카드 생성)
+    +'try{parent.postMessage({type:"simAlive"},"*");}catch(e){}'
+    // ② 슬라이더 초기값 전송
+    +'function sendInputs(){'
+    +'  var inputs={};'
+    +'  document.querySelectorAll("input[type=range],select,input[type=number]").forEach(function(el,i){'
+    +'    var k=el.id||el.name||("f"+i);'
+    +'    inputs[k]=isNaN(parseFloat(el.value))?el.value:parseFloat(el.value);'
+    +'  });'
+    +'  parent.postMessage({type:"simInputs",inputs:inputs},"*");'
+    +'}'
+    // ③ 슬라이더 변경 감지 (이미 로드됐으면 즉시, 아니면 DOMContentLoaded 후)
+    +'function setupListeners(){'
+    +'  document.addEventListener("input",function(e){'
+    +'    if(e.target.type==="range"||e.target.tagName==="SELECT"||e.target.type==="number"){'
+    +'      setTimeout(sendInputs,300);'
+    +'    }'
+    +'  });'
+    +'  document.addEventListener("click",function(e){'
+    +'    if(e.target.tagName==="BUTTON") setTimeout(sendInputs,400);'
+    +'  });'
+    +'  setTimeout(sendInputs,800);' // 초기값 한 번 전송
+    +'}'
+    +'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",setupListeners);}else{setupListeners();}'
+    // ④ Canvas 스냅샷 주기 전송
     +'setInterval(function(){'
     +'  try{'
     +'    var canvases=document.querySelectorAll("canvas");'
     +'    var cv=null;'
-    +'    canvases.forEach(function(c){if(c.id!=="opc"&&c.width>50&&c.height>50)cv=c;});'
+    +'    canvases.forEach(function(c){'
+    +'      if(c.id==="opc")return;'
+    +'      var r=c.getBoundingClientRect();'
+    +'      if(r.width>50&&r.height>50)cv=c;' // CSS 크기 기준으로 변경
+    +'    });'
     +'    if(cv){'
     +'      var thumb=document.createElement("canvas");'
-    +'      thumb.width=200;thumb.height=120;'
-    +'      thumb.getContext("2d").drawImage(cv,0,0,200,120);'
-    +'      parent.postMessage({type:"simThumb",data:thumb.toDataURL("image/jpeg",0.7)},"*");'
+    +'      thumb.width=220;thumb.height=140;'
+    +'      thumb.getContext("2d").drawImage(cv,0,0,220,140);'
+    +'      var d=thumb.toDataURL("image/jpeg",0.75);'
+    +'      if(d&&d.length>200) parent.postMessage({type:"simThumb",data:d},"*");'
     +'    }'
     +'  }catch(e){}'
-    +'},1200);'
-    // 슬라이더 자동 감지
-    +'document.addEventListener("DOMContentLoaded",function(){'
-    +'  document.addEventListener("input",function(e){'
-    +'    if(e.target.type==="range"||e.target.tagName==="SELECT"){'
-    +'      setTimeout(function(){'
-    +'        var inputs={};'
-    +'        document.querySelectorAll("input[type=range],select,input[type=number]").forEach(function(el,i){'
-    +'          var k=el.id||el.name||("f"+i);'
-    +'          inputs[k]=isNaN(parseFloat(el.value))?el.value:parseFloat(el.value);'
-    +'        });'
-    +'        parent.postMessage({type:"simInputs",inputs:inputs},"*");'
-    +'      },300);'
-    +'    }'
-    +'  });'
-    +'});'
+    +'},1500);'
     +'})();<\/script>';
 
   var injected=fullHtml.replace(/<\/body>/i, bridge+'</body>');
@@ -284,18 +299,18 @@ function injectSim(html){
 var _lastInputs={}, _lastThumb=null;
 window.addEventListener('message',function(e){
   if(!e.data||!e.data.type)return;
-  if(e.data.type==='simState'){
-    // reportSimState() 직접 호출한 상태
+  if(e.data.type==='simAlive'){
+    // 학생 접속 즉시 신호 → 빈 상태라도 카드 생성
+    doReport({mode:'접속됨',_inputs:{},thumbnail:null});
+  } else if(e.data.type==='simState'){
     _customState=e.data.state;
     if(_lastThumb) _customState.thumbnail=_lastThumb;
     doReport(_customState);
   } else if(e.data.type==='simThumb'){
-    // Canvas 스냅샷
     _lastThumb=e.data.data;
     if(_customState){_customState.thumbnail=_lastThumb;doReport(_customState);}
     else doReport({thumbnail:_lastThumb,mode:'활동중',_inputs:_lastInputs});
   } else if(e.data.type==='simInputs'){
-    // 슬라이더 값 자동 수집
     _lastInputs=e.data.inputs;
     doReport(Object.assign({},_customState||{},{_inputs:_lastInputs,thumbnail:_lastThumb||undefined}));
   }
