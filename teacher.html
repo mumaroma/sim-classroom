@@ -212,6 +212,7 @@ main{max-width:1100px;margin:0 auto;padding:16px}
   <div class="hbtns">
     <span id="headerUser" style="font-size:12px;color:#888;margin-right:4px"></span>
     <button class="hbtn" onclick="showInviteModal()">🔗 초대</button>
+    <button class="hbtn" onclick="showIndexSetup()">📋 학생 페이지 설정</button>
     <button class="hbtn" id="toggleSetup">⚙ Supabase</button>
     <button class="hbtn" id="logoutBtn" onclick="doLogout()">로그아웃</button>
   </div>
@@ -253,6 +254,33 @@ main{max-width:1100px;margin:0 auto;padding:16px}
       ⚠️ 초대 코드에는 Supabase 접속 정보가 포함돼요.<br>학교 동료에게만 공유하세요.
     </p>
     <div style="font-size:12px;color:#1D9E75;text-align:center;margin-top:8px;display:none" id="inviteCopied">✓ 복사됐어요!</div>
+  </div>
+</div>
+
+<!-- 학생 페이지 설정 모달 -->
+<div id="indexSetupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeIndexSetup()">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:540px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:700;color:#1D9E75">📋 학생 페이지(index.html) 설정</div>
+      <button class="btn btn-outline btn-sm" onclick="closeIndexSetup()">✕</button>
+    </div>
+    <p style="font-size:13px;color:#666;line-height:1.7;margin-bottom:16px">
+      학생이 <b>직접 주소를 입력</b>해도 접속되려면<br>
+      index.html 파일 상단에 Supabase 정보를 직접 넣어야 해요.<br>
+      아래 코드를 복사해서 <b>GitHub의 index.html 2~3번 줄</b>에 붙여넣으세요.
+    </p>
+    <div style="background:#1e1e2e;border-radius:10px;padding:14px;margin-bottom:14px;position:relative">
+      <pre id="indexSetupCode" style="font-size:12px;color:#cdd6f4;font-family:monospace;white-space:pre-wrap;word-break:break-all;margin:0"></pre>
+      <button onclick="copyIndexSetup()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">복사</button>
+    </div>
+    <div style="background:#f0fdf8;border-radius:8px;padding:12px;font-size:12px;color:#065f46;line-height:1.7">
+      <b>GitHub에서 수정하는 방법:</b><br>
+      1. <a href="https://github.com/mumaroma/sim-classroom/blob/main/index.html" target="_blank" style="color:#1D9E75">GitHub index.html</a> 접속<br>
+      2. 연필(✏) 아이콘 클릭<br>
+      3. <code style="background:#d1fae5;padding:1px 5px;border-radius:3px">var FIXED_SB_URL = '';</code> 줄을 찾아서 붙여넣기<br>
+      4. Commit changes 클릭
+    </div>
+    <div style="font-size:11px;color:#1D9E75;text-align:center;margin-top:10px;display:none" id="indexCopied">✓ 복사됐어요!</div>
   </div>
 </div>
 
@@ -467,6 +495,27 @@ function doLogout(){
   if(!confirm('로그아웃 할까요?'))return;
   sessionStorage.removeItem('teacher_loggedin');
   location.reload();
+}
+
+// ── 학생 페이지 설정 ──
+function showIndexSetup(){
+  var url=localStorage.getItem('sb_url')||'';
+  var key=localStorage.getItem('sb_key')||'';
+  if(!url||!key){alert('먼저 Supabase 연결을 완료해주세요.');return;}
+  var code='var FIXED_SB_URL = \''+url+'\';\nvar FIXED_SB_KEY = \''+key+'\';';
+  document.getElementById('indexSetupCode').textContent=code;
+  document.getElementById('indexSetupModal').style.display='flex';
+  document.getElementById('indexCopied').style.display='none';
+}
+function closeIndexSetup(){
+  document.getElementById('indexSetupModal').style.display='none';
+}
+function copyIndexSetup(){
+  var text=document.getElementById('indexSetupCode').textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    document.getElementById('indexCopied').style.display='block';
+    setTimeout(function(){document.getElementById('indexCopied').style.display='none';},2000);
+  });
 }
 
 // ── 초대 코드 ──

@@ -142,12 +142,28 @@ body{
 var sbClient=null;
 var currentSession=null; // {id, sim_id, sim_title, class_name}
 
-// Supabase 초기화
-// 1순위: URL 파라미터 (선생님이 공유한 링크에 포함)
-// 2순위: localStorage (같은 기기에서 이전에 접속한 경우)
+// ═══════════════════════════════════════════
+// Supabase 설정 (선생님이 한번만 설정하면 됨)
+// teacher.html → ⚙ Supabase → 값 복사 후 아래에 붙여넣기
+var FIXED_SB_URL = '';  // 예: 'https://xxxxxxxx.supabase.co'
+var FIXED_SB_KEY = '';  // 예: 'eyJhbGciOiJIUzI1NiIs...'
+// ═══════════════════════════════════════════
+
+// Supabase 초기화 (우선순위 순)
+// 1순위: 위에 하드코딩된 값
+// 2순위: URL 파라미터 (선생님 공유 링크)
+// 3순위: localStorage (이전에 접속한 기기)
 var _urlParams=new URLSearchParams(location.search);
-var SB_URL=_urlParams.get('su')||localStorage.getItem('sb_url')||'';
-var SB_KEY=_urlParams.get('sk')||localStorage.getItem('sb_key')||'';
+var SB_URL=FIXED_SB_URL||_urlParams.get('su')||localStorage.getItem('sb_url')||'';
+var SB_KEY=FIXED_SB_KEY||_urlParams.get('sk')||localStorage.getItem('sb_key')||'';
+
+// URL에 su/sk 있으면 저장
+var _urlSu=_urlParams.get('su'),_urlSk=_urlParams.get('sk');
+if(_urlSu&&_urlSk){
+  localStorage.setItem('sb_url',_urlSu);
+  localStorage.setItem('sb_key',_urlSk);
+}
+
 if(SB_URL&&SB_KEY){
   sbClient=supabase.createClient(SB_URL,SB_KEY);
   localStorage.setItem('sb_url',SB_URL);
@@ -244,8 +260,18 @@ async function checkCode(){
   if(code.length<4){document.getElementById('codeErr').textContent='코드는 최소 4자리예요';return;}
 
   if(!sbClient){
-    document.getElementById('codeErr').textContent='선생님께 받은 전체 링크로 접속해야 해요. (직접 주소 입력 불가)';
-    return;
+    // 연결 안 내도 일단 코드+이름 받아서 student.html로 보내기 시도
+    // (student.html에서도 localStorage 확인함)
+    if(localStorage.getItem('sb_url')&&localStorage.getItem('sb_key')){
+      SB_URL=localStorage.getItem('sb_url');
+      SB_KEY=localStorage.getItem('sb_key');
+      sbClient=supabase.createClient(SB_URL,SB_KEY);
+    } else {
+      document.getElementById('codeErr').innerHTML=
+        '연결 정보가 없어요.<br>'
+        +'<span style="font-size:11px">선생님께 받은 링크로 접속하거나, 선생님께 문의해주세요.</span>';
+      return;
+    }
   }
 
   showStep('stepLoading');
