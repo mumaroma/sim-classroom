@@ -225,15 +225,54 @@ function injectSim(html){
   }
 
   container.innerHTML=toInject;
-  var scripts=container.querySelectorAll('script');
-  scripts.forEach(function(old){
-    var s=document.createElement('script');
-    s.textContent=old.textContent;
-    document.body.appendChild(s);
-    old.remove();
-  });
-  // 코드 실행 완료 후 추적 시작 + 상태 복원
-  setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
+
+  // 외부 스크립트(src=)와 인라인 스크립트 분리
+  var scripts=Array.from(container.querySelectorAll('script'));
+  var extScripts=scripts.filter(function(s){return s.src||s.getAttribute('src');});
+  var inlineScripts=scripts.filter(function(s){return !s.src&&!s.getAttribute('src')&&s.textContent.trim();});
+
+  scripts.forEach(function(s){s.remove();});
+
+  if(extScripts.length){
+    // 외부 스크립트 순서대로 로드 후 인라인 실행
+    var loaded=0;
+    extScripts.forEach(function(old){
+      var s=document.createElement('script');
+      s.src=old.src||old.getAttribute('src');
+      s.onload=function(){
+        loaded++;
+        if(loaded===extScripts.length){
+          // 모든 외부 스크립트 로드 완료 → 인라인 실행
+          inlineScripts.forEach(function(old2){
+            var s2=document.createElement('script');
+            s2.textContent=old2.textContent;
+            document.body.appendChild(s2);
+          });
+          setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
+        }
+      };
+      s.onerror=function(){
+        loaded++;
+        if(loaded===extScripts.length){
+          inlineScripts.forEach(function(old2){
+            var s2=document.createElement('script');
+            s2.textContent=old2.textContent;
+            document.body.appendChild(s2);
+          });
+          setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
+        }
+      };
+      document.head.appendChild(s);
+    });
+  } else {
+    // 인라인 스크립트만 있는 경우
+    inlineScripts.forEach(function(old){
+      var s=document.createElement('script');
+      s.textContent=old.textContent;
+      document.body.appendChild(s);
+    });
+    setTimeout(function(){ startAutoTrack(); restoreSimState(); }, 600);
+  }
 }
 
 // ── 상태 복원 (교사가 학생 카드 클릭 시) ──
