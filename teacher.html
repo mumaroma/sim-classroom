@@ -331,6 +331,8 @@ main{max-width:1100px;margin:0 auto;padding:16px}
         <button class="btn btn-primary btn-sm" id="toggleAddForm">+ 새 추가</button>
       </div>
       <div id="addSimForm">
+        <input type="hidden" id="editSimId" value="">
+        <div id="formModeLabel" style="font-size:13px;font-weight:700;color:#3C3489;margin-bottom:10px;display:none">✏️ 시뮬레이션 수정 중</div>
         <div class="field"><label>폴더</label>
           <div style="display:flex;gap:6px">
             <select id="simFolder" style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none">
@@ -769,6 +771,10 @@ async function loadSimList(){
       previewBtn.className='btn btn-outline btn-sm';previewBtn.textContent='👁 미리보기';
       previewBtn.addEventListener('click',(function(id,title){return function(e){e.stopPropagation();previewSim(id,title);};})(sim.id,sim.title));
 
+      var editBtn=document.createElement('button');
+      editBtn.className='btn btn-outline btn-sm';editBtn.textContent='✏️ 수정';
+      editBtn.addEventListener('click',(function(id){return function(e){e.stopPropagation();openEditSim(id);};})(sim.id));
+
       var openBtn=document.createElement('button');
       openBtn.className='btn btn-green btn-sm';openBtn.textContent='▶ 클래스 열기';
       openBtn.addEventListener('click',(function(id,title){return function(){askClassName(id,title);};})(sim.id,sim.title));
@@ -781,7 +787,7 @@ async function loadSimList(){
       delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
       delBtn.addEventListener('click',(function(id){return function(){deleteSim(id);};})(sim.id));
 
-      actDiv.appendChild(previewBtn);actDiv.appendChild(openBtn);actDiv.appendChild(moveBtn);actDiv.appendChild(delBtn);
+      actDiv.appendChild(previewBtn);actDiv.appendChild(editBtn);actDiv.appendChild(openBtn);actDiv.appendChild(moveBtn);actDiv.appendChild(delBtn);
       el.appendChild(infoDiv);el.appendChild(actDiv);
       body.appendChild(el);
     });
@@ -820,13 +826,25 @@ async function moveSim(simId,simTitle,currentFolder){
 }
 
 document.getElementById('toggleAddForm').addEventListener('click',function(){
-  var f=document.getElementById('addSimForm');f.style.display=f.style.display==='block'?'none':'block';
+  var f=document.getElementById('addSimForm');
+  if(f.style.display==='block'){
+    closeAddForm();
+    this.textContent='+ 새 추가';
+  } else {
+    f.style.display='block';
+    this.textContent='✕ 닫기';
+  }
 });
-document.getElementById('cancelAdd').addEventListener('click',function(){
+document.getElementById('cancelAdd').addEventListener('click',closeAddForm);
+
+function closeAddForm(){
   document.getElementById('addSimForm').style.display='none';
+  document.getElementById('editSimId').value='';
+  document.getElementById('formModeLabel').style.display='none';
+  document.getElementById('saveSim').textContent='저장';
   ['simTitle','simDesc','simCode','simFolderNew'].forEach(function(id){document.getElementById(id).value='';});
   var sel=document.getElementById('simFolder');if(sel)sel.value='미분류';
-});
+}
 document.getElementById('saveSim').addEventListener('click',async function(){
   var title=document.getElementById('simTitle').value.trim();
   var desc=document.getElementById('simDesc').value.trim();
@@ -835,17 +853,51 @@ document.getElementById('saveSim').addEventListener('click',async function(){
   var folderSel=document.getElementById('simFolder');
   var folderNewEl=document.getElementById('simFolderNew');
   var folder=(folderNewEl&&folderNewEl.value.trim())||(folderSel&&folderSel.value)||'미분류';
-  var insertData={title:title,description:desc,code:code};
-  // folder 컬럼이 있으면 포함
-  try{insertData.folder=folder;}catch(e){}
-  var r=await sbClient.from('simulations').insert(insertData);
+  var editId=document.getElementById('editSimId').value;
+  var r;
+  if(editId){
+    r=await sbClient.from('simulations').update({title:title,description:desc,code:code,folder:folder}).eq('id',editId);
+  } else {
+    var insertData={title:title,description:desc,code:code};
+    try{insertData.folder=folder;}catch(e){}
+    r=await sbClient.from('simulations').insert(insertData);
+  }
   if(r.error){alert('저장 실패: '+r.error.message);return;}
   var m=document.getElementById('simSaveMsg');m.style.display='inline';
   setTimeout(function(){m.style.display='none';},1500);
-  document.getElementById('addSimForm').style.display='none';
-  ['simTitle','simDesc','simCode'].forEach(function(id){document.getElementById(id).value='';});
+  closeAddForm();
+  document.getElementById('toggleAddForm').textContent='+ 새 추가';
   loadSimList();
-});
+});;
+async function openEditSim(id){
+  // Supabase에서 해당 시뮬레이션 전체 데이터 불러오기
+  var r=await sbClient.from('simulations').select('*').eq('id',id).single();
+  if(r.error||!r.data){alert('불러오기 실패');return;}
+  var sim=r.data;
+  // 폼 열기 + 값 채우기
+  document.getElementById('addSimForm').style.display='block';
+  document.getElementById('editSimId').value=id;
+  document.getElementById('simTitle').value=sim.title||'';
+  document.getElementById('simDesc').value=sim.description||'';
+  document.getElementById('simCode').value=sim.code||'';
+  document.getElementById('formModeLabel').style.display='block';
+  document.getElementById('saveSim').textContent='수정 저장';
+  // 폴더 선택
+  var folderSel=document.getElementById('simFolder');
+  if(folderSel){
+    var exists=Array.from(folderSel.options).some(function(o){return o.value===sim.folder;});
+    if(!exists&&sim.folder){
+      var opt=document.createElement('option');opt.value=sim.folder;opt.textContent=sim.folder;
+      folderSel.appendChild(opt);
+    }
+    folderSel.value=sim.folder||'미분류';
+  }
+  // 폼으로 스크롤
+  document.getElementById('addSimForm').scrollIntoView({behavior:'smooth',block:'start'});
+  // + 새 추가 버튼 상태
+  document.getElementById('toggleAddForm').textContent='✕ 닫기';
+}
+
 async function deleteSim(id){
   if(!confirm('삭제할까요?'))return;
   await sbClient.from('simulations').delete().eq('id',id);
