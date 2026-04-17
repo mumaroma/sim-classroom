@@ -467,9 +467,10 @@ async function doLogin(){
   if(!id||!pw){err.textContent='아이디와 비밀번호를 입력해주세요.';return;}
   err.textContent='로그인 중...';
   var hash=await hashPw(pw);
-  // 1순위: Supabase teachers 테이블
-  var su=localStorage.getItem('sb_url')||'https://gnvaehodisytpwzxuegn.supabase.co';
-  var sk=localStorage.getItem('sb_key')||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
+  // 항상 기본 Supabase 키 사용 (localStorage 덮어쓰기)
+  var su='https://gnvaehodisytpwzxuegn.supabase.co';
+  var sk='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
+  localStorage.setItem('sb_url',su);localStorage.setItem('sb_key',sk);
   try{
     var tmpClient=supabase.createClient(su,sk);
     var r=await tmpClient.from('teachers').select('pw_hash,sb_url,sb_key').eq('id',id).single();
@@ -601,18 +602,20 @@ window.addEventListener('load',function(){
   var sb=document.getElementById('setupBtn');if(sb)sb.addEventListener('click',doSetup);
 
   // 이미 로그인된 세션이면 바로 연결
+  // 항상 기본 Supabase 키로 초기화
+  var _defaultSu='https://gnvaehodisytpwzxuegn.supabase.co';
+  var _defaultSk='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
+  localStorage.setItem('sb_url',_defaultSu);localStorage.setItem('sb_key',_defaultSk);
+
   var loggedIn=sessionStorage.getItem('teacher_loggedin');
   if(loggedIn){
     var stored=localStorage.getItem('teacher_'+loggedIn);
     if(stored){
-      var profile=JSON.parse(stored);
-      var sbUrl=profile.sbUrl||'https://gnvaehodisytpwzxuegn.supabase.co';
-      var sbKey=profile.sbKey||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('headerUser').textContent=loggedIn+' 님';
-      document.getElementById('sbUrl').value=sbUrl;
-      document.getElementById('sbKey').value=sbKey;
-      initSupa(sbUrl,sbKey);
+      document.getElementById('sbUrl').value=_defaultSu;
+      document.getElementById('sbKey').value=_defaultSk;
+      initSupa(_defaultSu,_defaultSk);
       return;
     }
   }
