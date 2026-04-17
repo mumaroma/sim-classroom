@@ -675,6 +675,7 @@ function switchTab(name){
   document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('on');});
   document.getElementById('tab-'+name).classList.add('on');
   if(name==='hist') loadHistory();
+  if(name==='sim') loadSimList();
 }
 
 // ── 시뮬레이션 목록 ──
