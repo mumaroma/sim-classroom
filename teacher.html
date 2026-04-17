@@ -445,6 +445,9 @@ var sbClient=null,sessionId=null,currentSimId=null,currentSimTitle='',currentCla
 var students={},channel=null,cachedSimCode=null,cardElements={};
 var hiddenStudents={},isAnon=false,anonMap={},anonCount=0;
 var pendingSimId=null,pendingSimTitle='';
+
+// HTML 이스케이프
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 var PF=['#EEEDFE','#FAECE7','#E1F5EE','#E1F5EE','#E6F1FB'];
 var PS=['#7F77DD','#D85A30','#1D9E75','#1D9E75','#378ADD'];
 
