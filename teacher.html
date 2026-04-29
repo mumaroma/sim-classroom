@@ -1282,6 +1282,107 @@ function previewSim(simId, simTitle){
   document.body.style.overflow='hidden';
 }
 
+// ── 클래스 기록 ──
+async function loadHistory(){
+  var histList=document.getElementById('histList');
+  if(!histList)return;
+  if(!sbClient){histList.innerHTML='<div class="empty-msg">연결 안 됨</div>';return;}
+  histList.innerHTML='<div class="empty-msg" style="color:#aaa">불러오는 중...</div>';
+  var tid=sessionStorage.getItem('teacher_loggedin')||'';
+  try{
+    var q=sbClient.from('sessions').select('*').order('created_at',{ascending:false}).limit(50);
+    if(tid) q=q.eq('teacher_id',tid);
+    var r=await q;
+    if(r.error)throw r.error;
+    var rows=r.data||[];
+    // 필터 버튼 생성
+    var filters=document.getElementById('histFilters');
+    if(filters){
+      var simNames=[...new Set(rows.map(function(s){return s.sim_title||''})).values()].filter(Boolean);
+      // 필터 버튼 동적 생성
+      filters.innerHTML='';
+      var allBtn=document.createElement('button');allBtn.className='hist-filter on';allBtn.textContent='전체';
+      allBtn.addEventListener('click',function(){filterHistory(allBtn,'all');});filters.appendChild(allBtn);
+      simNames.forEach(function(n){
+        var nb=document.createElement('button');nb.className='hist-filter';nb.textContent=n;
+        nb.addEventListener('click',(function(name,btn){return function(){filterHistory(btn,name);};})(n,nb));
+        filters.appendChild(nb);
+      });
+    }
+    renderHistList(rows);
+  }catch(e){
+    histList.innerHTML='<div class="empty-msg" style="color:#e24b4a">불러오기 실패: '+esc(e.message)+'</div>';
+  }
+}
+
+var _histFilter='all',_histRows=[];
+function filterHistory(btn,filter){
+  _histFilter=filter;
+  document.querySelectorAll('.hist-filter').forEach(function(b){b.classList.toggle('on',b===btn);});
+  renderHistList(_histRows);
+}
+function renderHistList(rows){
+  _histRows=rows;
+  var histList=document.getElementById('histList');if(!histList)return;
+  histList.innerHTML='';
+  var filtered=_histFilter==='all'?rows:rows.filter(function(r){return r.sim_title===_histFilter;});
+  if(!filtered.length){histList.innerHTML='<div class="empty-msg">클래스 기록이 없어요</div>';return;}
+  filtered.forEach(function(s){
+    var div=document.createElement('div');div.className='hist-item';
+    var d=new Date(s.created_at);
+    var ds=(d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    var ended=s.ended_at?'종료':'미종료';
+    div.innerHTML='<div class="hist-title">'+esc(s.sim_title||'')+'</div>'
+      +'<div class="hist-meta"><span class="hist-class">'+esc(s.class_name||'')+'</span>'
+      +' <span>'+ds+'</span> <span>'+ended+'</span>'
+      +' <span style="color:#3C3489;font-weight:600">'+((s.student_count||0))+'명</span></div>';
+    var btns=document.createElement('div');btns.className='hist-btns';
+    var resumeBtn=document.createElement('button');resumeBtn.className='btn btn-outline btn-sm';resumeBtn.textContent='↩ 이어보기';
+    resumeBtn.addEventListener('click',(function(row){return function(){resumeSession(row);};})(s));
+    var newBtn=document.createElement('button');newBtn.className='btn btn-green btn-sm';newBtn.textContent='▶ 새 클래스';
+    newBtn.addEventListener('click',(function(row){return function(){askClassName(row.sim_id,row.sim_title);};})(s));
+    var delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='삭제';
+    delBtn.addEventListener('click',(function(id){return function(){deleteHistory(id);};})(s.id));
+    btns.appendChild(resumeBtn);btns.appendChild(newBtn);btns.appendChild(delBtn);
+    div.appendChild(btns);histList.appendChild(div);
+  });
+}
+async function deleteHistory(id){
+  if(!confirm('기록을 삭제할까요?'))return;
+  await sbClient.from('sessions').delete().eq('id',id);
+  await sbClient.from('sim_states').delete().eq('session_id',id);
+  loadHistory();
+}
+function resumeSession(s){
+  currentSimId=s.sim_id;currentSimTitle=s.sim_title||'';currentClassName=s.class_name||'';
+  localStorage.setItem('session_sim_id',s.sim_id);
+  localStorage.setItem('session_sim_title',s.sim_title||'');
+  localStorage.setItem('session_class',s.class_name||'');
+  localStorage.setItem('session_id',s.id);
+  startSession(s.id,false);
+  switchTab('live');
+}
+
+// ── migrateOldSessions ──
+async function migrateOldSessions(){
+  var tid=sessionStorage.getItem('teacher_loggedin')||'';
+  if(!tid||!sbClient)return;
+  try{
+    await sbClient.from('sessions').update({teacher_id:tid}).eq('teacher_id','').is('ended_at',null);
+  }catch(e){}
+}
+
+// ── 모달 닫기 ──
+function closeModal(){
+  document.getElementById('simModal').style.display='none';
+  var frame=document.getElementById('modalFrame');
+  if(frame){frame.src='';frame.style.display='block';}
+  var old=document.getElementById('studentPreviewContent');
+  if(old)old.remove();
+  _modalTargetName=null;
+  document.body.style.overflow='';
+}
+
 var _modalTargetName=null;
 
 function showStudentModal(name){
