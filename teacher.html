@@ -1363,6 +1363,24 @@ function resumeSession(s){
   switchTab('live');
 }
 
+// ── 클래스 종료 ──
+async function endSession(){
+  if(!sessionId||!sbClient)return;
+  if(!confirm('클래스를 종료할까요?'))return;
+  try{
+    await sbClient.from('sessions').update({ended_at:new Date().toISOString()}).eq('id',sessionId);
+  }catch(e){}
+  sessionId=null;currentSimId=null;currentSimTitle='';currentClassName='';
+  students={};
+  if(channel){channel.unsubscribe();channel=null;}
+  document.getElementById('sessionCard').style.display='none';
+  document.getElementById('noSessionMsg').style.display='block';
+  document.getElementById('studentsCard').style.display='none';
+  document.getElementById('liveDot').classList.remove('live');
+  clearGrid();
+  loadHistory();
+}
+
 // ── migrateOldSessions ──
 async function migrateOldSessions(){
   var tid=sessionStorage.getItem('teacher_loggedin')||'';
