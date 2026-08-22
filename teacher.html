@@ -898,10 +898,14 @@ async function loadSimList(){
       el.className='sim-item'+(isRunning?' running':'');
 
       var infoDiv=document.createElement('div');infoDiv.className='sim-info';
-      
-      infoDiv.innerHTML+=
-        (sim.uploaded_by?'<div class="sim-uploader">등록: '+esc(sim.uploaded_by)+'</div>':'')
-        +'<span class="sim-vis-badge" data-vis="'+(sim.visibility||'public')+'">'+({'public':'🌐 전체공개','private':'🔒 본인만','admin':'👑 관리자만'}[sim.visibility||'public']||'🌐 전체공개')+'</span>';
+      var _ds2=isRunning?' · <span style="color:#1D9E75;font-weight:600">진행 중</span>':'';
+      var _vl2={'public':'🌐 전체공개','private':'🔒 본인만','admin':'👑 관리자만'};
+      infoDiv.innerHTML=
+        '<div class="sim-title">'+esc(sim.title)+'</div>'
+        +(sim.description?'<div class="sim-desc">'+esc(sim.description)+'</div>':'')
+        +'<div class="sim-date">'+ds+_ds2+' </div>'
+        +(sim.uploaded_by?'<div class="sim-uploader">등록: '+esc(sim.uploaded_by)+'</div>':'')
+        +'<span class="sim-vis-badge" data-vis="'+(sim.visibility||'public')+'">'+(_vl2[sim.visibility||'public']||'🌐 전체공개')+'</span>';
 
       var actDiv=document.createElement('div');actDiv.className='sim-actions';
       if(isRunning){var badge=document.createElement('span');badge.className='badge-running';badge.textContent='진행 중';actDiv.appendChild(badge);}
