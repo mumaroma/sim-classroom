@@ -344,7 +344,18 @@ main{max-width:1100px;margin:0 auto;padding:16px}
         </div>
         <div class="field"><label>제목 *</label><input type="text" id="simTitle" placeholder="예: (a-b)² 곱셈공식 시뮬레이션"></div>
         <div class="field"><label>설명 (선택)</label><input type="text" id="simDesc" placeholder="예: 5조각 드래그 활동"></div>
-        <div class="field"><label>시뮬레이션 코드 전체 붙여넣기 *</label><textarea id="simCode"></textarea></div>
+        <div class="field">
+          <label>시뮬레이션 코드 *</label>
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label style="display:inline-flex;align-items:center;gap:6px;background:#f0f0fe;border:1px solid #7F77DD;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;color:#3C3489;font-weight:600;white-space:nowrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              HTML 파일 선택
+              <input type="file" id="simFileInput" accept=".html" style="display:none">
+            </label>
+            <span id="simFileName" style="font-size:12px;color:#aaa">또는 아래에 직접 붙여넣으세요</span>
+          </div>
+          <textarea id="simCode" placeholder="시뮬레이션 HTML 코드를 붙여넣으세요"></textarea>
+        </div>
         <div class="row">
           <button class="btn btn-green" id="saveSim">저장</button>
           <button class="btn btn-outline" id="cancelAdd">취소</button>
@@ -863,6 +874,25 @@ document.getElementById('toggleAddForm').addEventListener('click',function(){
 });
 document.getElementById('cancelAdd').addEventListener('click',closeAddForm);
 
+// HTML 파일 선택 → 자동으로 코드 입력창에 채우기
+document.getElementById('simFileInput').addEventListener('change',function(){
+  var file=this.files[0];if(!file)return;
+  var nameSpan=document.getElementById('simFileName');
+  nameSpan.textContent=file.name;
+  // 제목 자동 입력 (파일명에서 확장자 제거)
+  var titleEl=document.getElementById('simTitle');
+  if(!titleEl.value){
+    titleEl.value=file.name.replace(/\.html?$/i,'').replace(/[-_]/g,' ');
+  }
+  // 파일 내용 읽기
+  var reader=new FileReader();
+  reader.onload=function(e){
+    document.getElementById('simCode').value=e.target.result;
+    document.getElementById('simCode').dispatchEvent(new Event('input'));
+  };
+  reader.readAsText(file,'UTF-8');
+});
+
 function closeAddForm(){
   document.getElementById('addSimForm').style.display='none';
   document.getElementById('editSimId').value='';
@@ -870,6 +900,9 @@ function closeAddForm(){
   document.getElementById('saveSim').textContent='저장';
   ['simTitle','simDesc','simCode','simFolderNew'].forEach(function(id){document.getElementById(id).value='';});
   var sel=document.getElementById('simFolder');if(sel)sel.value='미분류';
+  // 파일 입력 초기화
+  var fi=document.getElementById('simFileInput');if(fi)fi.value='';
+  var fn=document.getElementById('simFileName');if(fn)fn.textContent='파일을 선택하거나 아래에 직접 붙여넣으세요';
 }
 document.getElementById('saveSim').addEventListener('click',async function(){
   var title=document.getElementById('simTitle').value.trim();
