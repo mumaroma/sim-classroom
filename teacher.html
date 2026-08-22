@@ -1524,11 +1524,14 @@ function showStudentModal(name){
 
   // student.html iframe으로 로드 (preview 모드)
   var base=window.location.href.replace('teacher.html','student.html');
-  var su=localStorage.getItem('sb_url')||'',sk=localStorage.getItem('sb_key')||'';
+  var su=localStorage.getItem('sb_url')||'https://gnvaehodisytpwzxuegn.supabase.co';
+  var sk=localStorage.getItem('sb_key')||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
+  var displayName=isAnon?getDisplayName(name):name;
   var url=base+'?session='+sessionId+'&sim='+currentSimId
-    +'&name='+encodeURIComponent(name)+'&preview=1&statekey='+previewKey
-    +(su?'&su='+encodeURIComponent(su):'')
-    +(sk?'&sk='+encodeURIComponent(sk):'');
+    +'&name='+encodeURIComponent(displayName)
+    +'&preview=1&teacher_preview=1&statekey='+previewKey
+    +'&su='+encodeURIComponent(su)
+    +'&sk='+encodeURIComponent(sk);
 
   var frame=document.getElementById('modalFrame');
   frame.style.display='block';

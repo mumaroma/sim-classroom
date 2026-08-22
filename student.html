@@ -90,7 +90,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="simContainer"></div>
 
 <script>
-var params=new URLSearchParams(location.search);
+// ? 파라미터와 # 뒤 파라미터 모두 파싱 (구글 로그인 리디렉션 대응)
+var _search=location.search||'';
+var _hash=location.hash||'';
+// #?session=... 형태 처리
+if(_hash.indexOf('?')>=0) _search=_hash.substring(_hash.indexOf('?'));
+// #access_token= 형태이면 search 파라미터도 함께 병합
+var params=new URLSearchParams(_search);
+// hash에도 key=value 형태가 있으면 병합
+if(_hash&&_hash.indexOf('=')>=0){
+  var _hashParams=new URLSearchParams(_hash.replace(/^#\??/,''));
+  _hashParams.forEach(function(v,k){if(!params.get(k))params.set(k,v);});
+}
 var sessionId=params.get('session')||'';
 var simId=params.get('sim')||'';
 var studentName='';
@@ -132,13 +143,20 @@ if(SB_URL&&SB_KEY){
   }
 }
 
-// 교사 미리보기: 이름/세션 없이 바로 시뮬레이션 로드
+// 교사 미리보기: URL의 name 파라미터로 자동 시작
 if(isTeacherPreview){
-  window.reportSimState=function(){};  // 상태 보고 비활성화
-  document.getElementById('tbSession').textContent='미리보기';
-  document.getElementById('tbName').textContent='교사';
+  var _previewName=params.get('name')||'미리보기';
+  studentName=_previewName;
+  document.getElementById('namePrompt').style.display='none';
+  document.getElementById('tbSession').textContent=sessionId||'미리보기';
+  document.getElementById('tbName').textContent=_previewName;
   document.getElementById('connDot').classList.add('ok');
-  document.getElementById('connText').textContent='미리보기 모드';
+  document.getElementById('connText').textContent='교사 미리보기';
+  // Supabase 연결 (상태 읽기용)
+  var _psu=params.get('su')||'https://gnvaehodisytpwzxuegn.supabase.co';
+  var _psk=params.get('sk')||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudmFlaG9kaXN5dHB3enh1ZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNjYwMDMsImV4cCI6MjA5MTc0MjAwM30.YmGYv01xyhUSRf-He2APhaiGKmvRCFc3gpOe8NhajUY';
+  if(_psu&&_psk) sbClient=supabase.createClient(_psu,_psk);
+  window.reportSimState=function(){}; // 상태 보고 비활성화
   loadSimulation();
 }
 
