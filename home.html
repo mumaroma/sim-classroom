@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>수학 시뮬레이션 클래스룸</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --paper:#FCFAF3;
+  --ink:#1A1A1A;
+  --ink2:#555;
+  --terra:#B7410E;
+  --blue:#1B4965;
+  --gold:#A8541E;
+  --green:#1D9E75;
+  --line:#E8E0CC;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  line-height:1.7;
+}
+
+/* ── 네비 ── */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(252,250,243,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(16px,5vw,60px);
+  height:58px;
+}
+.nav-logo{font-size:15px;font-weight:700;color:var(--blue);letter-spacing:-.02em}
+.nav-logo span{color:var(--terra)}
+.nav-links{display:flex;gap:8px;align-items:center}
+.nav-links a{
+  font-size:13px;color:var(--ink2);text-decoration:none;
+  padding:7px 14px;border-radius:8px;transition:background .15s;
+}
+.nav-links a:hover{background:#EDE8DC}
+.nav-btn{
+  font-size:13px;font-weight:600;
+  background:var(--blue);color:#fff;
+  padding:8px 18px;border-radius:8px;text-decoration:none;
+  transition:opacity .15s;
+}
+.nav-btn:hover{opacity:.85}
+.nav-btn.green{background:var(--green)}
+
+/* ── 히어로 ── */
+.hero{
+  min-height:88vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;
+  padding:60px clamp(16px,5vw,60px) 40px;
+  position:relative;
+  overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(27,73,101,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(183,65,14,.06) 0%, transparent 70%);
+  pointer-events:none;
+}
+/* 수학 기호 배경 장식 */
+.hero-math{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;
+  font-size:clamp(18px,3vw,28px);color:var(--blue);opacity:.06;
+  font-style:italic;font-weight:700;
+  user-select:none;
+}
+.hero-math span{position:absolute}
+.tag{
+  display:inline-block;
+  font-size:12px;font-weight:700;letter-spacing:.08em;
+  color:var(--terra);background:rgba(183,65,14,.08);
+  padding:4px 14px;border-radius:20px;
+  margin-bottom:20px;
+}
+h1{
+  font-size:clamp(32px,6vw,64px);font-weight:800;
+  line-height:1.15;letter-spacing:-.03em;
+  margin-bottom:20px;color:var(--ink);
+}
+h1 em{color:var(--blue);font-style:normal}
+h1 strong{color:var(--terra)}
+.hero-desc{
+  font-size:clamp(15px,2vw,19px);color:var(--ink2);
+  max-width:560px;margin:0 auto 36px;
+}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
+.btn-primary{
+  background:var(--blue);color:#fff;
+  font-size:15px;font-weight:700;
+  padding:14px 32px;border-radius:10px;text-decoration:none;
+  transition:opacity .15s;
+}
+.btn-primary:hover{opacity:.85}
+.btn-secondary{
+  background:transparent;color:var(--blue);
+  font-size:15px;font-weight:600;
+  padding:14px 28px;border-radius:10px;text-decoration:none;
+  border:1.5px solid var(--blue);
+  transition:background .15s;
+}
+.btn-secondary:hover{background:rgba(27,73,101,.07)}
+.btn-green{background:var(--green);color:#fff;font-size:15px;font-weight:700;padding:14px 32px;border-radius:10px;text-decoration:none;transition:opacity .15s;}
+.btn-green:hover{opacity:.85}
+
+/* 미리보기 카드 */
+.preview-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+  max-width:720px;width:100%;
+}
+.preview-card{
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  padding:16px;text-align:left;
+}
+.preview-card .pc-tag{
+  font-size:10px;font-weight:700;letter-spacing:.06em;
+  color:var(--green);margin-bottom:8px;
+}
+.preview-card .pc-formula{
+  font-size:17px;font-weight:700;color:var(--blue);
+  font-style:italic;margin-bottom:4px;
+}
+.preview-card .pc-desc{font-size:11px;color:#999}
+.preview-card .pc-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);display:inline-block;margin-right:4px;
+}
+
+/* ── 기능 섹션 ── */
+.section{padding:80px clamp(16px,5vw,60px);max-width:1100px;margin:0 auto}
+.section-label{font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--terra);margin-bottom:12px}
+.section-title{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.02em;margin-bottom:12px;line-height:1.2}
+.section-desc{font-size:15px;color:var(--ink2);max-width:520px;margin-bottom:48px}
+
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
+.feature{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;position:relative;overflow:hidden}
+.feature::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.feature.f-blue::before{background:var(--blue)}
+.feature.f-terra::before{background:var(--terra)}
+.feature.f-green::before{background:var(--green)}
+.feature.f-gold::before{background:var(--gold)}
+.feat-icon{font-size:28px;margin-bottom:14px}
+.feat-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px}
+.feat-desc{font-size:13.5px;color:var(--ink2);line-height:1.7}
+
+/* ── 사용 흐름 ── */
+.divider{border:none;border-top:1px solid var(--line);margin:0}
+.flow-section{background:#fff;padding:80px clamp(16px,5vw,60px)}
+.flow-inner{max-width:900px;margin:0 auto}
+.flow-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0}
+.flow-step{padding:24px 20px;position:relative;text-align:center}
+.flow-step:not(:last-child)::after{
+  content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+  font-size:20px;color:var(--line);
+}
+.flow-num{
+  width:42px;height:42px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  font-size:16px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;
+}
+.flow-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.flow-desc{font-size:12px;color:var(--ink2)}
+
+/* ── 시뮬레이션 예시 ── */
+.sims-section{padding:80px clamp(16px,5vw,60px);max-width:1100px;margin:0 auto}
+.sim-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.sim-card{
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;transition:transform .2s;cursor:default;
+}
+.sim-card:hover{transform:translateY(-4px)}
+.sim-header{
+  padding:24px 24px 16px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.sim-formula{font-size:22px;font-weight:800;color:var(--blue);font-style:italic}
+.sim-badge{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--green);background:rgba(29,158,117,.1);padding:3px 10px;border-radius:10px}
+.sim-body{padding:0 24px 24px}
+.sim-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.sim-desc{font-size:12.5px;color:var(--ink2);line-height:1.6;margin-bottom:14px}
+.sim-tags{display:flex;gap:6px;flex-wrap:wrap}
+.sim-tag{font-size:11px;color:var(--blue);background:rgba(27,73,101,.07);padding:3px 9px;border-radius:6px}
+
+/* ── CTA ── */
+.cta-section{
+  background:var(--blue);
+  padding:80px clamp(16px,5vw,60px);
+  text-align:center;
+}
+.cta-section h2{font-size:clamp(24px,4vw,40px);font-weight:800;color:#fff;margin-bottom:14px}
+.cta-section p{font-size:15px;color:rgba(255,255,255,.75);margin-bottom:36px}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.cta-btn-w{background:#fff;color:var(--blue);font-size:15px;font-weight:700;padding:14px 32px;border-radius:10px;text-decoration:none;transition:opacity .15s}
+.cta-btn-w:hover{opacity:.9}
+.cta-btn-o{background:transparent;color:#fff;font-size:15px;font-weight:600;padding:14px 28px;border-radius:10px;text-decoration:none;border:1.5px solid rgba(255,255,255,.5);transition:background .15s}
+.cta-btn-o:hover{background:rgba(255,255,255,.1)}
+
+/* ── 푸터 ── */
+footer{background:#1A1A1A;color:rgba(255,255,255,.5);padding:32px clamp(16px,5vw,60px);font-size:12px}
+.footer-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.footer-inner a{color:rgba(255,255,255,.5);text-decoration:none}
+.footer-inner a:hover{color:#fff}
+
+/* 반응형 */
+@media(max-width:600px){
+  .preview-row{grid-template-columns:1fr}
+  .flow-step:not(:last-child)::after{display:none}
+  .flow-steps{gap:16px}
+  .nav-links a:not(.nav-btn):not(.nav-btn.green){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- 네비 -->
+<nav>
+  <div class="nav-logo">수학<span>시뮬레이션</span> 클래스룸</div>
+  <div class="nav-links">
+    <a href="#features">기능</a>
+    <a href="#sims">시뮬레이션</a>
+    <a href="manual.html">매뉴얼</a>
+    <a href="index.html" class="nav-btn green">학생 입장</a>
+    <a href="teacher.html" class="nav-btn">교사 로그인</a>
+  </div>
+</nav>
+
+<!-- 히어로 -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-math">
+    <span style="left:3%;top:15%">(a−b)²</span>
+    <span style="left:88%;top:8%">∫f(x)dx</span>
+    <span style="left:7%;top:75%">P(X=k)</span>
+    <span style="left:82%;top:68%">y=ax+b</span>
+    <span style="left:45%;top:5%">Σ</span>
+    <span style="left:15%;top:45%">√</span>
+    <span style="left:75%;top:38%">lim</span>
+    <span style="left:55%;top:82%">π</span>
+  </div>
+
+  <div class="tag">수학 교육 플랫폼</div>
+  <h1>드래그로 탐구하는<br><em>수학 시뮬레이션</em><br><strong>클래스룸</strong></h1>
+  <p class="hero-desc">교사가 만든 수학 시뮬레이션을 학생들이 실시간으로 조작하고,<br>교사는 모든 학생의 활동을 한 화면에서 모니터링합니다.</p>
+
+  <div class="hero-btns">
+    <a href="teacher.html" class="btn-primary">교사 시작하기</a>
+    <a href="index.html" class="btn-green">학생으로 입장</a>
+    <a href="manual.html" class="btn-secondary">매뉴얼 보기</a>
+  </div>
+
+  <div class="preview-row">
+    <div class="preview-card">
+      <div class="pc-tag"><span class="pc-dot"></span>실시간 연결 중</div>
+      <div class="pc-formula">(a−b)²</div>
+      <div class="pc-desc">5조각 드래그 퍼즐 · a, b 슬라이더</div>
+    </div>
+    <div class="preview-card">
+      <div class="pc-tag"><span class="pc-dot"></span>실시간 연결 중</div>
+      <div class="pc-formula">(a+b)(a−b)</div>
+      <div class="pc-desc">합차공식 시각화 · L자 조합</div>
+    </div>
+    <div class="preview-card">
+      <div class="pc-tag"><span class="pc-dot"></span>실시간 연결 중</div>
+      <div class="pc-formula">P(X̄)</div>
+      <div class="pc-desc">표본 비율 분포 · 동전 실험</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 기능 -->
+<section class="section" id="features">
+  <div class="section-label">주요 기능</div>
+  <h2 class="section-title">교사와 학생 모두를 위한<br>스마트 클래스룸</h2>
+  <p class="section-desc">GitHub Pages와 Supabase를 기반으로, 별도 설치 없이 브라우저만으로 운영됩니다.</p>
+
+  <div class="features">
+    <div class="feature f-blue">
+      <div class="feat-icon">📡</div>
+      <div class="feat-title">실시간 학생 모니터링</div>
+      <div class="feat-desc">학생이 시뮬레이션을 조작하는 순간 교사 화면에 실시간으로 반영됩니다. 카드에서 조각 배치, 슬라이더 값, 그래프 결과를 한눈에 확인할 수 있어요.</div>
+    </div>
+    <div class="feature f-terra">
+      <div class="feat-icon">🧩</div>
+      <div class="feat-title">드래그 퍼즐 시뮬레이션</div>
+      <div class="feat-desc">수학 공식을 조각으로 분해해 직접 맞추는 방식으로 학습합니다. (a−b)², 합차공식 등 다양한 곱셈공식을 손으로 탐구할 수 있어요.</div>
+    </div>
+    <div class="feature f-green">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">확률·통계 실험</div>
+      <div class="feat-desc">동전 던지기 반복 실험으로 표본 비율 분포를 시각화합니다. 큰 수의 법칙과 중심극한정리를 그래프로 직접 확인할 수 있어요.</div>
+    </div>
+    <div class="feature f-gold">
+      <div class="feat-icon">👁</div>
+      <div class="feat-title">학생 화면 미리보기</div>
+      <div class="feat-desc">교사가 카드를 클릭하면 해당 학생이 마지막으로 조작한 상태 그대로 시뮬레이션이 열립니다. 학생 기록에는 영향을 주지 않아요.</div>
+    </div>
+    <div class="feature f-blue">
+      <div class="feat-icon">📁</div>
+      <div class="feat-title">시뮬레이션 관리</div>
+      <div class="feat-desc">HTML 파일 업로드 또는 코드 붙여넣기로 시뮬레이션을 등록합니다. 폴더로 분류하고, 클래스를 열어 학생에게 링크를 공유하세요.</div>
+    </div>
+    <div class="feature f-terra">
+      <div class="feat-icon">🔐</div>
+      <div class="feat-title">Google 계정 로그인</div>
+      <div class="feat-desc">교사는 Google 계정으로 간편하게 로그인합니다. 아이디/비밀번호 방식도 지원합니다. 어느 기기에서나 같은 계정으로 접속할 수 있어요.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 사용 흐름 -->
+<div class="flow-section">
+  <div class="flow-inner">
+    <div style="text-align:center;margin-bottom:40px">
+      <div class="section-label" style="display:inline-block">수업 흐름</div>
+      <h2 class="section-title">3분이면 시작할 수 있어요</h2>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-title">교사 로그인</div>
+        <div class="flow-desc">Google 계정 또는<br>아이디/비밀번호로 로그인</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-title">시뮬레이션 선택</div>
+        <div class="flow-desc">시뮬레이션 탭에서<br>원하는 활동 선택</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-title">클래스 열기</div>
+        <div class="flow-desc">▶ 클래스 열기 클릭<br>학생 링크 자동 생성</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-title">링크 공유</div>
+        <div class="flow-desc">복사 버튼으로 링크<br>학생에게 카카오톡 전송</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-title">실시간 관찰</div>
+        <div class="flow-desc">학생 활동이 카드로<br>실시간 표시</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- 시뮬레이션 예시 -->
+<section class="sims-section" id="sims">
+  <div class="section-label">시뮬레이션 예시</div>
+  <h2 class="section-title">현재 사용 가능한 시뮬레이션</h2>
+  <p class="section-desc" style="margin-bottom:40px">드래그, 슬라이더, 반복 실험으로 수학 공식을 탐구합니다.</p>
+
+  <div class="sim-grid">
+    <div class="sim-card">
+      <div class="sim-header">
+        <div class="sim-formula">(a−b)²</div>
+        <div class="sim-badge">곱셈공식</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title">차의 제곱 시뮬레이션</div>
+        <div class="sim-desc">5개의 정사각형·직사각형 조각을 드래그해 (a−b)²의 기하학적 의미를 탐구합니다. a, b 슬라이더로 변수 값을 바꾸며 수식 변화를 관찰해요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag">드래그 퍼즐</span>
+          <span class="sim-tag">슬라이더</span>
+          <span class="sim-tag">기하학적 증명</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <div class="sim-header">
+        <div class="sim-formula">(a+b)²</div>
+        <div class="sim-badge">곱셈공식</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title">합의 제곱 시뮬레이션</div>
+        <div class="sim-desc">5조각 드래그로 (a+b)²= a²+2ab+b²를 시각적으로 증명합니다. 조각을 조합하며 공식의 의미를 직접 체득할 수 있어요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag">드래그 퍼즐</span>
+          <span class="sim-tag">정사각형 조합</span>
+          <span class="sim-tag">기하학적 증명</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <div class="sim-header">
+        <div class="sim-formula">a²−b²</div>
+        <div class="sim-badge">곱셈공식</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title">합차공식 시뮬레이션</div>
+        <div class="sim-desc">L자 조합으로 (a+b)(a−b)=a²−b²를 시각화합니다. b(a−b) 조각 회전과 겹침 영역으로 공식의 의미를 탐구해요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag">드래그 퍼즐</span>
+          <span class="sim-tag">L자 조합</span>
+          <span class="sim-tag">넓이 비교</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card">
+      <div class="sim-header">
+        <div class="sim-formula">P(X̄)</div>
+        <div class="sim-badge">확률·통계</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title">표본 비율 분포 시뮬레이션</div>
+        <div class="sim-desc">동전 던지기 반복 실험으로 표본 비율의 분포를 시각화합니다. 큰 수의 법칙과 중심극한정리를 점그래프로 직접 확인할 수 있어요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag">반복 실험</span>
+          <span class="sim-tag">점그래프</span>
+          <span class="sim-tag">중심극한정리</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card" style="border:1.5px dashed var(--line);background:transparent">
+      <div class="sim-header">
+        <div class="sim-formula" style="color:#ccc">DMTG</div>
+        <div class="sim-badge" style="color:#ccc;background:rgba(0,0,0,.05)">준비 중</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title" style="color:#aaa">DMTG 시리즈</div>
+        <div class="sim-desc" style="color:#bbb">동적 자취 그래프 기반 함수·운동 시뮬레이션. 속도-시간 그래프, 위치-시간 그래프 탐구 활동이 추가될 예정이에요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag" style="color:#bbb;background:rgba(0,0,0,.04)">추가 예정</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-card" style="border:1.5px dashed var(--line);background:transparent">
+      <div class="sim-header">
+        <div class="sim-formula" style="color:#ccc">+∞</div>
+        <div class="sim-badge" style="color:#ccc;background:rgba(0,0,0,.05)">교사 등록</div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-title" style="color:#aaa">직접 추가하기</div>
+        <div class="sim-desc" style="color:#bbb">HTML 파일 업로드 또는 코드 붙여넣기로 새로운 시뮬레이션을 직접 등록할 수 있어요. Claude에게 만들어 달라고 해보세요.</div>
+        <div class="sim-tags">
+          <span class="sim-tag" style="color:#bbb;background:rgba(0,0,0,.04)">교사 직접 등록</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>지금 바로 시작해보세요</h2>
+  <p>교사 계정을 만들고 첫 번째 수학 클래스를 열어보세요.<br>학생 링크 공유까지 3분이면 충분합니다.</p>
+  <div class="cta-btns">
+    <a href="teacher.html" class="cta-btn-w">교사 시작하기</a>
+    <a href="manual.html" class="cta-btn-o">매뉴얼 보기</a>
+  </div>
+</section>
+
+<!-- 푸터 -->
+<footer>
+  <div class="footer-inner">
+    <div>수학 시뮬레이션 클래스룸 · 전남대학교 수학교육학과</div>
+    <div style="display:flex;gap:20px">
+      <a href="teacher.html">교사 페이지</a>
+      <a href="index.html">학생 입장</a>
+      <a href="manual.html">매뉴얼</a>
+      <a href="https://github.com/mumaroma/sim-classroom" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

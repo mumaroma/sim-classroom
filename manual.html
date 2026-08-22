@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>매뉴얼 · 수학 시뮬레이션 클래스룸</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --paper:#FCFAF3;
+  --ink:#1A1A1A;
+  --ink2:#555;
+  --terra:#B7410E;
+  --blue:#1B4965;
+  --green:#1D9E75;
+  --line:#E8E0CC;
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--paper);color:var(--ink);line-height:1.7}
+
+/* 네비 */
+nav{position:sticky;top:0;z-index:100;background:rgba(252,250,243,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,5vw,60px);height:58px}
+.nav-logo{font-size:15px;font-weight:700;color:var(--blue)}
+.nav-logo span{color:var(--terra)}
+.nav-links{display:flex;gap:8px;align-items:center}
+.nav-links a{font-size:13px;color:var(--ink2);text-decoration:none;padding:7px 14px;border-radius:8px;transition:background .15s}
+.nav-links a:hover{background:#EDE8DC}
+.nav-btn{font-size:13px;font-weight:600;background:var(--blue);color:#fff;padding:8px 18px;border-radius:8px;text-decoration:none}
+
+/* 레이아웃 */
+.layout{display:flex;max-width:1100px;margin:0 auto;padding:40px clamp(16px,4vw,40px);gap:40px}
+
+/* 사이드바 */
+.sidebar{width:220px;flex-shrink:0}
+.sidebar-inner{position:sticky;top:80px}
+.sidebar h3{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--terra);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.sidebar nav a{display:block;font-size:13px;color:var(--ink2);text-decoration:none;padding:5px 10px;border-radius:6px;margin-bottom:2px;transition:background .1s}
+.sidebar nav a:hover{background:#EDE8DC;color:var(--ink)}
+.sidebar nav a.active{background:#EDE8DC;color:var(--blue);font-weight:600}
+.sidebar-group{margin-bottom:20px}
+
+/* 콘텐츠 */
+.content{flex:1;min-width:0;max-width:720px}
+
+/* 헤더 */
+.manual-header{margin-bottom:40px;padding-bottom:24px;border-bottom:2px solid var(--line)}
+.manual-header .tag{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--terra);margin-bottom:8px}
+.manual-header h1{font-size:32px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+.manual-header p{font-size:15px;color:var(--ink2)}
+
+/* 섹션 */
+.manual-section{margin-bottom:56px}
+.manual-section h2{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:16px;padding-bottom:10px;border-bottom:1.5px solid var(--line);display:flex;align-items:center;gap:10px}
+.manual-section h2 .num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.manual-section h3{font-size:16px;font-weight:700;color:var(--blue);margin:24px 0 10px}
+
+p{font-size:14.5px;color:var(--ink2);margin-bottom:12px}
+
+/* 스텝 카드 */
+.steps{display:flex;flex-direction:column;gap:12px;margin:16px 0}
+.step{display:flex;gap:14px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--terra);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-body{}
+.step-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.step-desc{font-size:13px;color:var(--ink2);line-height:1.6}
+.step-code{font-family:monospace;font-size:12px;background:#F0EDE5;padding:4px 8px;border-radius:4px;color:var(--blue);display:inline-block;margin-top:4px;word-break:break-all}
+
+/* 팁 박스 */
+.tip{background:rgba(27,73,101,.06);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:12px 16px;margin:16px 0}
+.tip .tip-label{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.06em;margin-bottom:4px}
+.tip p{margin:0;font-size:13px}
+
+.warn{background:rgba(183,65,14,.06);border-left:3px solid var(--terra);border-radius:0 8px 8px 0;padding:12px 16px;margin:16px 0}
+.warn .tip-label{color:var(--terra)}
+
+/* 표 */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{background:#fff;border-bottom:2px solid var(--line);padding:10px 14px;text-align:left;font-weight:700;color:var(--blue)}
+td{border-bottom:1px solid var(--line);padding:10px 14px;color:var(--ink2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(0,0,0,.02)}
+
+/* FAQ */
+.faq{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-item:last-child{border-bottom:none}
+.faq-q{padding:14px 18px;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.faq-q:hover{background:#F5F1E8}
+.faq-a{padding:0 18px 14px;font-size:13.5px;color:var(--ink2);line-height:1.7;display:none}
+.faq-item.open .faq-a{display:block}
+.faq-item.open .faq-arrow{transform:rotate(180deg)}
+.faq-arrow{transition:transform .2s;color:#aaa}
+
+/* 반응형 */
+@media(max-width:700px){
+  .layout{flex-direction:column;gap:24px}
+  .sidebar{width:100%}
+  .sidebar-inner{position:static}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">수학<span>시뮬레이션</span> 클래스룸</div>
+  <div class="nav-links">
+    <a href="home.html">홈</a>
+    <a href="index.html">학생 입장</a>
+    <a href="teacher.html" class="nav-btn">교사 로그인</a>
+  </div>
+</nav>
+
+<div class="layout">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-group">
+        <h3>시작하기</h3>
+        <nav>
+          <a href="#intro">서비스 소개</a>
+          <a href="#teacher-setup">교사 계정 만들기</a>
+          <a href="#student-join">학생 입장 방법</a>
+        </nav>
+      </div>
+      <div class="sidebar-group">
+        <h3>교사 기능</h3>
+        <nav>
+          <a href="#class-open">클래스 열기</a>
+          <a href="#monitoring">학생 모니터링</a>
+          <a href="#sim-manage">시뮬레이션 관리</a>
+          <a href="#history">클래스 기록</a>
+        </nav>
+      </div>
+      <div class="sidebar-group">
+        <h3>도움말</h3>
+        <nav>
+          <a href="#faq">자주 묻는 질문</a>
+          <a href="#tips">활용 팁</a>
+        </nav>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 콘텐츠 -->
+  <main class="content">
+
+    <div class="manual-header">
+      <div class="tag">MANUAL</div>
+      <h1>사용 매뉴얼</h1>
+      <p>수학 시뮬레이션 클래스룸을 처음 사용하는 분들을 위한 안내서입니다.<br>교사 계정 생성부터 수업 운영까지 단계별로 안내합니다.</p>
+    </div>
+
+    <!-- 1. 서비스 소개 -->
+    <section class="manual-section" id="intro">
+      <h2><span class="num">1</span>서비스 소개</h2>
+      <p>수학 시뮬레이션 클래스룸은 교사가 만든 수학 시뮬레이션을 학생들이 실시간으로 조작하고, 교사는 모든 학생의 활동을 한 화면에서 모니터링할 수 있는 웹 기반 교육 플랫폼입니다.</p>
+
+      <h3>주요 구성</h3>
+      <table>
+        <tr><th>페이지</th><th>주소</th><th>역할</th></tr>
+        <tr><td>교사 페이지</td><td><code>teacher.html</code></td><td>로그인, 시뮬레이션 관리, 학생 모니터링</td></tr>
+        <tr><td>학생 입장</td><td><code>index.html</code></td><td>클래스 코드 입력 후 시뮬레이션 참여</td></tr>
+        <tr><td>시뮬레이션</td><td><code>student.html</code></td><td>실제 시뮬레이션 화면 (직접 접속 불가)</td></tr>
+      </table>
+
+      <div class="tip">
+        <div class="tip-label">참고</div>
+        <p>학생은 항상 교사가 공유한 링크 또는 클래스 코드로 접속해야 합니다. <code>student.html</code>에 직접 접속하면 오류가 나요.</p>
+      </div>
+    </section>
+
+    <!-- 2. 교사 계정 만들기 -->
+    <section class="manual-section" id="teacher-setup">
+      <h2><span class="num">2</span>교사 계정 만들기</h2>
+      <p>처음 사용하는 교사는 계정을 먼저 만들어야 합니다. 두 가지 방법이 있어요.</p>
+
+      <h3>방법 A — Google 계정으로 가입 (추천)</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">교사 페이지 접속</div>
+            <div class="step-desc">아래 주소로 접속하세요.</div>
+            <div class="step-code">https://mumaroma.github.io/sim-classroom/teacher.html</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Google 계정으로 로그인 클릭</div>
+            <div class="step-desc">로그인 화면에서 [G Google 계정으로 로그인] 버튼을 클릭합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Google 계정 선택</div>
+            <div class="step-desc">팝업에서 사용할 Google 계정을 선택하면 자동으로 로그인됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>방법 B — 아이디/비밀번호로 가입</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">계정 만들기 클릭</div>
+            <div class="step-desc">로그인 화면 상단의 [처음 사용하시나요? 계정 만들기 →] 클릭</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">초대 코드 입력 (선택)</div>
+            <div class="step-desc">동료 교사에게 초대 코드를 받았다면 붙여넣고 [Supabase 자동 연결] 클릭. Supabase 정보가 자동으로 입력됩니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">아이디 · 비밀번호 입력</div>
+            <div class="step-desc">사용할 아이디와 비밀번호(6자 이상)를 입력합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">계정 만들기 및 시작</div>
+            <div class="step-desc">[계정 만들기 및 시작] 버튼을 클릭하면 즉시 로그인됩니다.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 학생 입장 -->
+    <section class="manual-section" id="student-join">
+      <h2><span class="num">3</span>학생 입장 방법</h2>
+
+      <h3>방법 A — 교사가 공유한 링크로 접속 (가장 쉬움)</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">링크 클릭</div>
+            <div class="step-desc">교사가 카카오톡 등으로 공유한 링크를 클릭합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">이름 입력 후 시작</div>
+            <div class="step-desc">이름을 입력하고 [시작하기]를 누르면 바로 시뮬레이션이 열립니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>방법 B — 클래스 코드로 접속</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">학생 입장 페이지 접속</div>
+            <div class="step-code">https://mumaroma.github.io/sim-classroom/</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">클래스 코드 입력</div>
+            <div class="step-desc">교사에게 받은 6자리 코드를 입력하고 [입장하기] 클릭. 영문 대문자 + 숫자 조합이에요.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">이름 입력</div>
+            <div class="step-desc">학생 이름을 입력하고 [시작하기] 클릭.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn">
+        <div class="tip-label">주의</div>
+        <p>코드 입력 방식은 교사가 공유한 링크를 통해 한 번 접속한 기기에서만 가능합니다. 처음이라면 반드시 링크로 접속해주세요.</p>
+      </div>
+    </section>
+
+    <!-- 4. 클래스 열기 -->
+    <section class="manual-section" id="class-open">
+      <h2><span class="num">4</span>클래스 열기</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">시뮬레이션 탭 클릭</div>
+            <div class="step-desc">상단 탭에서 📚 시뮬레이션 탭을 클릭합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">원하는 시뮬레이션 선택</div>
+            <div class="step-desc">목록에서 수업에 사용할 시뮬레이션을 찾습니다. [👁 미리보기]로 미리 확인할 수 있어요.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">▶ 클래스 열기 클릭</div>
+            <div class="step-desc">반 이름을 입력하고 확인하면 6자리 클래스 코드가 생성됩니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">학생 링크 공유</div>
+            <div class="step-desc">🟢 진행 중 탭에서 [복사] 버튼으로 링크를 복사해 학생에게 전송합니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-label">링크 종류</div>
+        <p><b>직접 링크</b>: 이름만 입력하면 바로 시작. 카카오톡 전송 추천<br><b>입장 페이지 링크</b>: 클래스 코드 입력 방식. QR코드로 변환 후 화면에 표시 추천</p>
+      </div>
+    </section>
+
+    <!-- 5. 학생 모니터링 -->
+    <section class="manual-section" id="monitoring">
+      <h2><span class="num">5</span>학생 모니터링</h2>
+      <p>학생이 접속하면 🟢 진행 중 탭에 카드가 자동으로 생성됩니다.</p>
+
+      <h3>카드 표시 정보</h3>
+      <table>
+        <tr><th>시뮬레이션 종류</th><th>카드 표시 내용</th></tr>
+        <tr><td>퍼즐 드래그</td><td>조각 배치 그림 + a, b 값</td></tr>
+        <tr><td>Canvas 그래프</td><td>실제 그래프 이미지</td></tr>
+        <tr><td>슬라이더</td><td>현재 입력값</td></tr>
+        <tr><td>확률실험</td><td>그래프 이미지 + 평균 비율</td></tr>
+      </table>
+
+      <h3>학생 카드 클릭</h3>
+      <p>카드를 클릭하면 해당 학생이 마지막으로 조작한 상태 그대로 시뮬레이션이 열립니다. 교사가 조작해도 학생 기록에는 영향을 주지 않아요.</p>
+
+      <h3>학생 관리</h3>
+      <table>
+        <tr><th>기능</th><th>방법</th></tr>
+        <tr><td>익명 처리</td><td>카드 우측 상단 👤 아이콘 클릭</td></tr>
+        <tr><td>숨기기</td><td>카드 우측 상단 숨기기 버튼</td></tr>
+        <tr><td>삭제</td><td>카드 우측 상단 🗑 아이콘 클릭</td></tr>
+      </table>
+    </section>
+
+    <!-- 6. 시뮬레이션 관리 -->
+    <section class="manual-section" id="sim-manage">
+      <h2><span class="num">6</span>시뮬레이션 관리</h2>
+
+      <h3>새 시뮬레이션 추가</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">시뮬레이션 탭 → [+ 새 추가] 클릭</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">HTML 파일 업로드 또는 코드 붙여넣기</div>
+            <div class="step-desc">[↑ HTML 파일 선택] 버튼으로 파일을 선택하거나, 코드를 직접 붙여넣을 수 있어요. 파일명이 제목으로 자동 입력됩니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">제목 · 설명 · 폴더 입력 후 저장</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <div class="tip-label">시뮬레이션 제작 팁</div>
+        <p>Claude AI에게 "수학 시뮬레이션 클래스룸용으로 만들어줘. reportSimState() 포함해서 교사가 실시간으로 볼 수 있게 해줘."라고 요청하면 바로 만들어줘요.</p>
+      </div>
+
+      <h3>폴더 관리</h3>
+      <p>시뮬레이션을 폴더로 분류할 수 있어요. [📁 이동] 버튼으로 폴더를 변경하고, 새 폴더를 만들 수 있습니다.</p>
+    </section>
+
+    <!-- 7. 클래스 기록 -->
+    <section class="manual-section" id="history">
+      <h2><span class="num">7</span>클래스 기록</h2>
+      <p>종료된 클래스는 🕘 클래스 기록 탭에 자동 보관됩니다.</p>
+      <table>
+        <tr><th>기능</th><th>설명</th></tr>
+        <tr><td>↩ 이어보기</td><td>이전 클래스 학생 데이터를 다시 불러와 확인</td></tr>
+        <tr><td>▶ 새 클래스</td><td>같은 시뮬레이션으로 새 클래스 시작</td></tr>
+        <tr><td>삭제</td><td>해당 기록과 학생 데이터 삭제</td></tr>
+      </table>
+    </section>
+
+    <!-- 8. FAQ -->
+    <section class="manual-section" id="faq">
+      <h2><span class="num">8</span>자주 묻는 질문</h2>
+      <div class="faq">
+        <div class="faq-item">
+          <div class="faq-q">학생 카드가 교사 화면에 안 나타나요<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">학생이 시뮬레이션에 접속한 직후 1~2초 안에 카드가 생깁니다. 그래도 안 나타나면 학생에게 페이지를 새로고침 해달라고 하세요. 교사 화면도 새로고침 해보세요.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">시뮬레이션 목록이 "불러오는 중..."에서 멈춰요<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">Supabase 연결 문제일 수 있어요. 로그아웃 후 다시 로그인하거나, ⚙ Supabase 버튼에서 연결 정보를 확인해주세요. Supabase 프로젝트가 일시정지 상태라면 대시보드에서 Resume 해주세요.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">학생 그래프 결과가 카드에 안 보여요<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">Canvas 기반 그래프는 학생이 실험을 실행해야 캡처됩니다. 학생이 [즉시 실행] 또는 [단계별 실행] 버튼을 누른 후 1~2초 기다리면 교사 카드에 그래프가 표시됩니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">학생이 링크로 접속했는데 "시뮬레이션 ID가 없습니다"가 떠요<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">교사 페이지 진행 중 탭의 [복사] 버튼으로 복사한 링크를 공유해야 합니다. 주소창에서 직접 복사한 주소는 필요한 정보가 빠져 있을 수 있어요.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">방학 후 접속하니 데이터가 없어요<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">Supabase 무료 플랜은 7일 미접속 시 프로젝트가 일시정지됩니다. supabase.com에서 프로젝트를 열고 [Resume project]를 클릭하면 데이터가 복구됩니다. Pro 플랜($25/월)은 자동 정지가 없습니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">동료 교사도 같은 시스템을 쓰게 하려면?<span class="faq-arrow">▾</span></div>
+          <div class="faq-a">교사 페이지 헤더의 [🔗 초대] 버튼을 클릭해 초대 코드를 복사, 공유하면 됩니다. 동료 교사가 계정 만들기 화면에서 초대 코드를 입력하면 같은 Supabase에 자동 연결됩니다.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. 활용 팁 -->
+    <section class="manual-section" id="tips">
+      <h2><span class="num">9</span>수업 활용 팁</h2>
+
+      <div class="tip">
+        <div class="tip-label">수업 도입부</div>
+        <p>슬라이더로 a, b 값을 변화시키며 "어떤 패턴이 보이나요?"라고 질문해보세요. 학생들이 공식을 발견하는 과정을 교사 화면에서 실시간으로 관찰할 수 있습니다.</p>
+      </div>
+
+      <div class="tip">
+        <div class="tip-label">형성 평가</div>
+        <p>클래스가 끝난 후 카드 배치를 보며 "이 학생은 어떻게 조각을 배치했나요?"를 같이 살펴보세요. 학생 카드를 클릭하면 마지막 상태를 그대로 볼 수 있습니다.</p>
+      </div>
+
+      <div class="tip">
+        <div class="tip-label">QR코드 활용</div>
+        <p>입장 페이지 링크를 QR코드로 변환해 교실 화면에 띄우면 학생들이 스마트폰으로 바로 접속할 수 있어요. qr.io 또는 qrcode-monkey.com에서 무료로 만들 수 있습니다.</p>
+      </div>
+
+      <div class="tip">
+        <div class="tip-label">시뮬레이션 제작 요청</div>
+        <p>Claude AI에게 "수학 시뮬레이션 클래스룸용으로 (내용) 시뮬레이션을 만들어줘. window.reportSimState() 포함해서 교사가 실시간으로 볼 수 있게 해줘."라고 요청하면 바로 HTML 파일을 만들어줍니다.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer style="background:#1A1A1A;color:rgba(255,255,255,.5);padding:24px clamp(16px,5vw,60px);font-size:12px">
+  <div style="max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>수학 시뮬레이션 클래스룸 매뉴얼 · 전남대학교 수학교육학과</div>
+    <div style="display:flex;gap:20px">
+      <a href="home.html" style="color:rgba(255,255,255,.5);text-decoration:none">홈</a>
+      <a href="teacher.html" style="color:rgba(255,255,255,.5);text-decoration:none">교사 페이지</a>
+      <a href="index.html" style="color:rgba(255,255,255,.5);text-decoration:none">학생 입장</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// FAQ 토글
+document.querySelectorAll('.faq-q').forEach(function(q){
+  q.addEventListener('click',function(){
+    var item=this.closest('.faq-item');
+    item.classList.toggle('open');
+  });
+});
+
+// 사이드바 현재 위치 표시
+var sections=document.querySelectorAll('.manual-section');
+var links=document.querySelectorAll('.sidebar nav a');
+window.addEventListener('scroll',function(){
+  var scrollY=window.scrollY+100;
+  sections.forEach(function(s){
+    if(s.offsetTop<=scrollY&&s.offsetTop+s.offsetHeight>scrollY){
+      links.forEach(function(l){l.classList.remove('active');});
+      var link=document.querySelector('.sidebar nav a[href="#'+s.id+'"]');
+      if(link)link.classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>
